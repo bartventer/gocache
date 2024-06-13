@@ -35,7 +35,7 @@ import (
     "context"
     "log"
 
-    "github.com/bartventer/gocache"
+    cache "github.com/bartventer/gocache"
     // Enable the Redis cache implementation
     _ "github.com/bartventer/gocache/redis"
 )
