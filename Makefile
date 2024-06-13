@@ -5,7 +5,7 @@ SHELL = /bin/bash
 COVERPROFILE ?= coverage.out
 
 test:
-	go test -v -coverprofile=$(COVERPROFILE) ./...
+	go test -v -race -coverprofile=$(COVERPROFILE) -covermode=atomic $(shell go list ./...)
 
 up:
 	docker-compose up -d
