@@ -6,13 +6,14 @@
     },
     "features": {
         "ghcr.io/bartventer/arch-devcontainer-features/common-utils": {
-            "additionalPackages": "github-cli"
+            "additionalPackages": "github-cli redis"
         },
         "ghcr.io/bartventer/arch-devcontainer-features/go": {
             "golangciLintVersion": "none",
             "installGoReleaser": true
         },
         "ghcr.io/bartventer/arch-devcontainer-features/docker-in-docker": {},
+        "ghcr.io/bartventer/arch-devcontainer-features/aws-cli": {},
         "ghcr.io/bartventer/arch-devcontainer-features/terraform": {
             "installTFsec": true,
             "enableShellCompletion": true,

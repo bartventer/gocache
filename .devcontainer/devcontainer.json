@@ -3,6 +3,7 @@
     "image": "ghcr.io/bartventer/gocache/devcontainer:latest",
     "mounts": [
         "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
-        "source=${localEnv:HOME}/.vscode-server,target=/home/vscode/.vscode-server-insiders/extensions,type=bind,consistency=cached"
+        "source=${localEnv:HOME}/.vscode-server,target=/home/vscode/.vscode-server-insiders/extensions,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind,consistency=ro"
     ]
 }
