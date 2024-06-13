@@ -7,6 +7,8 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/internal/testutil"
+	"github.com/bartventer/gocache/keymod"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -57,7 +59,7 @@ func TestRedisCache_New(t *testing.T) {
 func TestRedisCache_Count(t *testing.T) {
 	c := newRedisCache(t)
 
-	key := "testKey1"
+	key := testutil.UniqueKey(t)
 	value := "testValue1"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -74,7 +76,7 @@ func TestRedisCache_Count(t *testing.T) {
 
 func TestRedisCache_Exists(t *testing.T) {
 	c := newRedisCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -92,7 +94,7 @@ func TestRedisCache_Exists(t *testing.T) {
 func TestRedisCache_Del(t *testing.T) {
 	c := newRedisCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -116,30 +118,31 @@ func TestRedisCache_DelKeys(t *testing.T) {
 	c := newRedisCache(t)
 
 	keys := []string{"testKey1", "testKey2", "testKey3"}
+	hashTag := testutil.UniqueKey(t)
 	for _, key := range keys {
-		if err := c.Set(context.Background(), key, "testValue"); err != nil {
+		if err := c.Set(context.Background(), key, "testValue", keymod.HashTagModifier(hashTag)); err != nil {
 			t.Fatalf("Failed to set key: %v", err)
 		}
 	}
 
-	err := c.DelKeys(context.Background(), "testKey*")
+	err := c.DelKeys(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
 	require.NoError(t, err)
 
 	for _, key := range keys {
-		n, errExist := c.client.Exists(context.Background(), key).Result()
-		require.NoError(t, errExist)
-		assert.Equal(t, int64(0), n)
+		exists, existsErr := c.Exists(context.Background(), key, keymod.HashTagModifier(hashTag))
+		require.NoError(t, existsErr)
+		assert.False(t, exists)
 	}
 
 	// Non-existent key
-	err = c.DelKeys(context.Background(), "nonExistentKey*")
+	err = c.DelKeys(context.Background(), "nonExistentKey*", keymod.HashTagModifier(hashTag))
 	require.NoError(t, err)
 }
 
 func TestRedisCache_Clear(t *testing.T) {
 	c := newRedisCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -157,7 +160,7 @@ func TestRedisCache_Clear(t *testing.T) {
 func TestRedisCache_Get(t *testing.T) {
 	c := newRedisCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.client.Set(context.Background(), key, value, 0).Err(); err != nil {
@@ -180,7 +183,7 @@ func TestRedisCache_Get(t *testing.T) {
 func TestRedisCache_Set(t *testing.T) {
 	c := newRedisCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -197,7 +200,7 @@ func TestRedisCache_Set(t *testing.T) {
 func TestRedisCache_SetWithExpiry(t *testing.T) {
 	c := newRedisCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 	expiry := 1 * time.Second
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/internal/testutil"
 	"github.com/bartventer/gocache/keymod"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -65,7 +66,7 @@ func TestRedisCache_New(t *testing.T) {
 func TestRedisClusterCache_Count(t *testing.T) {
 	c := newRedisClusterCache(t)
 
-	key := "testKey1"
+	key := testutil.UniqueKey(t)
 	value := "testValue1"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -82,7 +83,7 @@ func TestRedisClusterCache_Count(t *testing.T) {
 
 func TestRedisClusterCache_Exists(t *testing.T) {
 	c := newRedisClusterCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -100,7 +101,7 @@ func TestRedisClusterCache_Exists(t *testing.T) {
 func TestRedisClusterCache_Del(t *testing.T) {
 	c := newRedisClusterCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -124,7 +125,7 @@ func TestRedisClusterCache_DelKeys(t *testing.T) {
 	c := newRedisClusterCache(t)
 
 	keys := []string{"testKey1", "testKey2", "testKey3", "testKey4", "testKey5"}
-	hashTag := "testHashTag"
+	hashTag := testutil.UniqueKey(t)
 	for _, key := range keys {
 		if err := c.Set(context.Background(), key, "testValue", keymod.HashTagModifier(hashTag)); err != nil {
 			t.Fatalf("Failed to set key: %v", err)
@@ -152,7 +153,7 @@ func TestRedisClusterCache_DelKeys(t *testing.T) {
 func TestRedisClusterCache_Clear(t *testing.T) {
 	c := newRedisClusterCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -170,7 +171,7 @@ func TestRedisClusterCache_Clear(t *testing.T) {
 func TestRedisClusterCache_Get(t *testing.T) {
 	c := newRedisClusterCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -192,7 +193,7 @@ func TestRedisClusterCache_Get(t *testing.T) {
 func TestRedisClusterCache_Set(t *testing.T) {
 	c := newRedisClusterCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -209,7 +210,7 @@ func TestRedisClusterCache_Set(t *testing.T) {
 func TestRedisClusterCache_SetWithExpiry(t *testing.T) {
 	c := newRedisClusterCache(t)
 
-	key := "testKey"
+	key := testutil.UniqueKey(t) + time.Now().String()
 	value := "testValue"
 	expiry := 1 * time.Second
 

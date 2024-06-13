@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/internal/testutil"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func TestMemcacheCache_New(t *testing.T) {
 
 func TestMemcacheCache_Exists(t *testing.T) {
 	c := newMemcacheCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -82,7 +83,7 @@ func TestMemcacheCache_Exists(t *testing.T) {
 
 func TestMemcacheCache_Del(t *testing.T) {
 	c := newMemcacheCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -109,7 +110,7 @@ func TestMemcacheCache_Del(t *testing.T) {
 
 func TestMemcacheCache_Clear(t *testing.T) {
 	c := newMemcacheCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -126,7 +127,7 @@ func TestMemcacheCache_Clear(t *testing.T) {
 
 func TestMemcacheCache_Get(t *testing.T) {
 	c := newMemcacheCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	if err := c.Set(context.Background(), key, value); err != nil {
@@ -153,7 +154,7 @@ func TestMemcacheCache_Get(t *testing.T) {
 
 func TestMemcacheCache_Set(t *testing.T) {
 	c := newMemcacheCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -174,7 +175,7 @@ func TestMemcacheCache_Set(t *testing.T) {
 
 func TestMemcacheCache_SetWithExpiry(t *testing.T) {
 	c := newMemcacheCache(t)
-	key := "testKey"
+	key := testutil.UniqueKey(t)
 	value := "testValue"
 	expiry := 1 * time.Second
 
