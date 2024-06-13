@@ -71,72 +71,108 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"sync"
 	"time"
+
+	"github.com/bartventer/gocache/keymod"
 )
 
 var (
 	// ErrNoCache is returned when no cache implementation is available.
-	ErrNoCache = errors.New("no cache implementation available")
+	ErrNoCache = errors.New("gocache: no cache implementation available")
 
 	// ErrKeyNotFound is returned when a key is not found in the cache.
-	ErrKeyNotFound = errors.New("key not found")
+	ErrKeyNotFound = errors.New("gocache: key not found")
+
+	// ErrPatternMatchingNotSupported is returned when a pattern matching operation is not supported
+	// by the cache implementation.
+	ErrPatternMatchingNotSupported = errors.New("gocache: pattern matching not supported")
 )
 
 // Cache is an interface that represents a cache. It has methods for setting, getting and deleting keys.
 // Each cache implementation should implement this interface.
 type Cache interface {
 	// Set sets a key to a value in the cache.
-	Set(ctx context.Context, key string, value interface{}) error
+	Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error
 
 	// SetWithExpiry sets a key to a value in the cache with an expiry time.
-	SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration) error
+	SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error
 
 	// Exists checks if a key exists in the cache.
-	Exists(ctx context.Context, key string) (bool, error)
+	Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error)
 
 	// Count returns the number of keys in the cache matching a pattern.
-	Count(ctx context.Context, pattern string) (int64, error)
+	Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error)
 
 	// Get gets the value of a key from the cache.
-	Get(ctx context.Context, key string) ([]byte, error)
+	Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error)
 
 	// Del deletes a key from the cache.
-	Del(ctx context.Context, key string) error
+	Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error
 
 	// DelKeys deletes all keys matching a pattern from the cache.
-	DelKeys(ctx context.Context, pattern string) error
+	DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error
 
 	// Clear clears all keys from the cache.
 	Clear(ctx context.Context) error
-}
 
-// Config is a struct that holds cache package specific configuration options.
-type Config struct {
-	// CountLimit defines the maximum number of keys to return in Count.
-	// If CountLimit is less than or equal to 0, [DefaultCountLimit] will be used.
-	CountLimit int64
+	// Ping checks if the cache is available.
+	Ping(ctx context.Context) error
+
+	// Close closes the cache connection.
+	Close() error
 }
 
 const (
-	// DefaultCountLimit is the default value for CountLimit.
-	DefaultCountLimit = 1000
+	// DefaultCountLimit is the default value for the [Config.CountLimit] option.
+	DefaultCountLimit = 10
 )
+
+// Config is a struct that holds configuration options for the cache package.
+//
+// # Compatibility
+//
+// These options are recognized by all cache drivers.
+type Config struct {
+	once sync.Once // once ensures the configuration is revised only once.
+	// CountLimit is the hint to the SCAN command about the amount of work to be done at each call.
+	// It does not guarantee the exact number of elements returned at every iteration, but the server
+	// will usually return this count or a few more elements per call. For small sets or hashes, all
+	// elements may be returned in the first SCAN call regardless of the CountLimit value. The CountLimit
+	// value can be changed between iterations. The default value is 10.
+	CountLimit int64
+}
+
+// Revise revises the configuration options to ensure they contain sensible values.
+func (c *Config) Revise() {
+	c.once.Do(c.revise)
+}
+
+func (c *Config) revise() {
+	if c.CountLimit <= 0 {
+		c.CountLimit = DefaultCountLimit
+	}
+}
 
 // Options is a struct that holds provider specific configuration options.
 //
-// Supported URL schemes:
+// # Compatibility
 //
-//	redis://
-//	rediscluster://
+// These options are only recognized by the following drivers:
+//   - [redis]
+//   - [rediscluster]
 //
-// Refer to the driver documentation for more information.
+// Other drivers will simply ignore these options.
+//
+// [redis]: https://pkg.go.dev/github.com/bartventer/gocache/redis
+// [rediscluster]: https://pkg.go.dev/github.com/bartventer/gocache/rediscluster
 type Options struct {
 	Config
 	// TLSConfig is the TLS configuration for the cache connection.
 	TLSConfig *tls.Config
 	// CredentialsProvider is a function that returns the username and password for the cache connection.
 	CredentialsProvider func(ctx context.Context) (username string, password string, err error)
-	// ExtraParams is a map of driver-specific options.
+	// Metadata is a map of provider specific configuration options.
 	// It offers an alternative method for configuring the provider.
 	// These values will override the URL values.
 	// Note: Network address (host:port) and function values will be ignored if provided.
@@ -146,14 +182,14 @@ type Options struct {
 	// Example usage for a Redis cache:
 	//
 	//  map[string]string{
-	// 		"Network": "tcp",
-	// 		"MaxRetries": "3",
-	// 		"MinRetryBackoff": "8ms",
-	// 		"PoolFIFO": "true",
+	// 	 	"Network": "tcp",
+	// 	 	"MaxRetries": "3",
+	// 	 	"MinRetryBackoff": "8ms",
+	// 	 	"PoolFIFO": "true",
 	// 	}
 	//
 	// This is equivalent to providing query parameters in the URL:
 	//
 	// 	redis://localhost:6379?network=tcp&maxretries=3&minretrybackoff=8ms&poolfifo=true
-	ExtraParams map[string]string
+	Metadata map[string]string
 }
