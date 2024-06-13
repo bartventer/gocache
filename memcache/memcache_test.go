@@ -2,18 +2,59 @@ package memcache
 
 import (
 	"context"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
+	cache "github.com/bartventer/gocache"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemcacheCache_Exists(t *testing.T) {
-	client := memcache.New("localhost:11211")
+const defaultAddr = "localhost:11211"
 
-	c := &memcacheCache{client: client}
+// malformedKey is a key that is too long which will trigger the [memcache.ErrMalformedKey] error.
+var malformedKey = strings.Repeat("a", 251)
+
+func TestMemcacheCache_OpenCacheURL(t *testing.T) {
+	m := &memcacheCache{}
+
+	u, err := url.Parse("memcache://" + defaultAddr)
+	require.NoError(t, err)
+
+	_, err = m.OpenCacheURL(context.Background(), u, &cache.Options{})
+	require.NoError(t, err)
+	assert.NotNil(t, m.client)
+}
+
+// newMemcacheCache creates a new Memcache cache with a test client.
+func newMemcacheCache(t *testing.T) *memcacheCache {
+	t.Helper()
+	client := memcache.New(defaultAddr)
+	err := client.Ping()
+	if err != nil {
+		t.FailNow()
+	}
+	c := &memcacheCache{client: client, config: &cache.Config{CountLimit: 100}}
+	t.Cleanup(func() {
+		client.Close()
+	})
+	return c
+}
+
+func TestMemcacheCache_New(t *testing.T) {
+	ctx := context.Background()
+	config := cache.Config{}
+
+	m := New(ctx, &config, defaultAddr)
+	require.NotNil(t, m)
+	assert.NotNil(t, m.client)
+}
+
+func TestMemcacheCache_Exists(t *testing.T) {
+	c := newMemcacheCache(t)
 	key := "testKey"
 	value := "testValue"
 
@@ -21,19 +62,26 @@ func TestMemcacheCache_Exists(t *testing.T) {
 		t.Fatalf("Failed to set key: %v", err)
 	}
 	t.Cleanup(func() {
-		client.Delete(key)
+		c.client.Delete(key)
 	})
 
 	exists, err := c.Exists(context.Background(), key)
 	require.NoError(t, err)
 	assert.True(t, exists)
+
+	// Non-existent key
+	exists, err = c.Exists(context.Background(), "nonExistentKey")
+	require.NoError(t, err)
+	assert.False(t, exists)
+
+	// Malformed key
+	_, err = c.Exists(context.Background(), malformedKey)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
 }
 
 func TestMemcacheCache_Del(t *testing.T) {
-	client := memcache.New("localhost:11211")
-
-	c := &memcacheCache{client: client}
-
+	c := newMemcacheCache(t)
 	key := "testKey"
 	value := "testValue"
 
@@ -50,14 +98,17 @@ func TestMemcacheCache_Del(t *testing.T) {
 
 	// Non-existent key
 	err = c.Del(context.Background(), "nonExistentKey")
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
+
+	// Malformed key
+	err = c.Del(context.Background(), malformedKey)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
 }
 
 func TestMemcacheCache_Clear(t *testing.T) {
-	client := memcache.New("localhost:11211")
-
-	c := &memcacheCache{client: client}
-
+	c := newMemcacheCache(t)
 	key := "testKey"
 	value := "testValue"
 
@@ -74,10 +125,7 @@ func TestMemcacheCache_Clear(t *testing.T) {
 }
 
 func TestMemcacheCache_Get(t *testing.T) {
-	client := memcache.New("localhost:11211")
-
-	c := &memcacheCache{client: client}
-
+	c := newMemcacheCache(t)
 	key := "testKey"
 	value := "testValue"
 
@@ -85,7 +133,7 @@ func TestMemcacheCache_Get(t *testing.T) {
 		t.Fatalf("Failed to set key: %v", err)
 	}
 	t.Cleanup(func() {
-		client.Delete(key)
+		c.client.Delete(key)
 	})
 
 	got, err := c.Get(context.Background(), key)
@@ -95,33 +143,37 @@ func TestMemcacheCache_Get(t *testing.T) {
 	// Non-existent key
 	_, err = c.Get(context.Background(), "nonExistentKey")
 	require.Error(t, err)
-	require.EqualError(t, memcache.ErrCacheMiss, err.Error())
+	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
+
+	// Malformed key
+	_, err = c.Get(context.Background(), malformedKey)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
 }
 
 func TestMemcacheCache_Set(t *testing.T) {
-	client := memcache.New("localhost:11211")
-
-	c := &memcacheCache{client: client}
-
+	c := newMemcacheCache(t)
 	key := "testKey"
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		client.Delete(key)
+		c.client.Delete(key)
 	})
 
 	got, err := c.Get(context.Background(), key)
 	require.NoError(t, err)
 	assert.Equal(t, []byte(value), got)
+
+	// Malformed key
+	err = c.Set(context.Background(), malformedKey, value)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
 }
 
 func TestMemcacheCache_SetWithExpiry(t *testing.T) {
-	client := memcache.New("localhost:11211")
-
-	c := &memcacheCache{client: client}
-
+	c := newMemcacheCache(t)
 	key := "testKey"
 	value := "testValue"
 	expiry := 1 * time.Second
@@ -129,7 +181,7 @@ func TestMemcacheCache_SetWithExpiry(t *testing.T) {
 	err := c.SetWithExpiry(context.Background(), key, value, expiry)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		client.Delete(key)
+		c.client.Delete(key)
 	})
 
 	got, err := c.Get(context.Background(), key)
@@ -141,5 +193,44 @@ func TestMemcacheCache_SetWithExpiry(t *testing.T) {
 
 	_, err = c.Get(context.Background(), key)
 	require.Error(t, err)
-	require.EqualError(t, memcache.ErrCacheMiss, err.Error())
+	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
+
+	// Malformed key
+	err = c.SetWithExpiry(context.Background(), malformedKey, value, expiry)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
+}
+
+// Pattern matching operations not supported by Memcache
+
+func TestMemcacheCache_Count(t *testing.T) {
+	c := newMemcacheCache(t)
+	_, err := c.Count(context.Background(), "*")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
+}
+
+func TestMemcacheCache_DelKeys(t *testing.T) {
+	c := newMemcacheCache(t)
+	err := c.DelKeys(context.Background(), "*")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
+}
+
+func TestMemcacheCache_Ping(t *testing.T) {
+	c := newMemcacheCache(t)
+
+	err := c.Ping(context.Background())
+	require.NoError(t, err)
+}
+
+func TestMemcacheCache_Close(t *testing.T) {
+	c := newMemcacheCache(t)
+
+	err := c.Close()
+	require.NoError(t, err)
+
+	// After closing, pinging should still succeed because Close is a no-op
+	err = c.Ping(context.Background())
+	require.NoError(t, err)
 }

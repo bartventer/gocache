@@ -6,9 +6,9 @@ It uses the memcache library to interact with a Memcache Client.
 
 The URL should have the following format:
 
-	memcache://<host>:<port>
+	memcache://<host1>:<port1>,<host2>:<port2>,...,<hostN>:<portN>
 
-The <host>:<port> pair corresponds to the Memcache Client node.
+Each <host>:<port> pair corresponds to the Memcache Client node.
 
 # Usage
 
@@ -50,17 +50,26 @@ Example via [memcache.New] constructor:
 	    c := memcache.New(ctx, cache.Config{}, "localhost:11211")
 	    // ... use c with the cache.Cache interface
 	}
+
+# Limitations
+
+Please note that due to the limitations of the Memcache protocol, pattern matching
+operations are not supported. This includes the [Count] and [DelKeys] methods, which will return an
+[cache.ErrPatternMatchingNotSupported] error if called.
 */
 package memcache
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/internal/gcerrors"
+	"github.com/bartventer/gocache/keymod"
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
@@ -79,7 +88,8 @@ type memcacheCache struct {
 }
 
 // New returns a new Memcache cache implementation.
-func New(ctx context.Context, config cache.Config, server ...string) *memcacheCache {
+func New(ctx context.Context, config *cache.Config, server ...string) *memcacheCache {
+	config.Revise()
 	m := &memcacheCache{}
 	m.init(ctx, config, server...)
 	return m
@@ -90,83 +100,119 @@ var _ cache.Cache = &memcacheCache{}
 
 // OpenCacheURL opens a new Memcache cache using the given URL and options.
 // It implements the cache.CacheURLOpener interface.
-func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL, options cache.Options) (cache.Cache, error) {
+func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
 	addrs := strings.Split(u.Host, ",")
-	// Initialize the Memcache client
-	m.init(ctx, options.Config, addrs...)
+	m.init(ctx, &options.Config, addrs...)
 	return m, nil
 }
 
 // init initializes the Memcache client with the given options.
 // It implements the cache.Cache interface.
-func (m *memcacheCache) init(_ context.Context, config cache.Config, server ...string) {
+func (m *memcacheCache) init(_ context.Context, config *cache.Config, server ...string) {
 	m.once.Do(func() {
-		m.config = &config
+		m.config = config
 		m.client = memcache.New(server...)
 	})
 }
 
 // Count implements cache.Cache.
-func (m *memcacheCache) Count(ctx context.Context, pattern string) (int64, error) {
-	// Memcache does not support key pattern matching
-	return 0, nil
+func (m *memcacheCache) Count(_ context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
+	return 0, gcerrors.NewWithScheme(Scheme, fmt.Errorf("Count not supported: %w", cache.ErrPatternMatchingNotSupported))
 }
 
 // Exists implements cache.Cache.
-func (m *memcacheCache) Exists(ctx context.Context, key string) (bool, error) {
+func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
+	key = keymod.ModifyKey(key, modifiers...)
 	_, err := m.client.Get(key)
-	if err == memcache.ErrCacheMiss {
-		return false, nil
+	if err != nil {
+		if err == memcache.ErrCacheMiss {
+			return false, nil
+		} else {
+			return false, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error checking key %s, underlying error: %w", key, err))
+		}
 	}
-	return err == nil, err
+	return true, nil
 }
 
 // Del deletes a key from the cache.
 // It implements the cache.Cache interface.
-func (m *memcacheCache) Del(ctx context.Context, key string) error {
-	return m.client.Delete(key)
+func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
+	err := m.client.Delete(key)
+	if err != nil {
+		if err == memcache.ErrCacheMiss {
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w, underlying error: %w", key, cache.ErrKeyNotFound, err))
+		} else {
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting key %s, underlying error: %w", key, err))
+		}
+	}
+	return nil
 }
 
 // DelKeys deletes all keys matching a pattern from the cache.
 // It implements the cache.Cache interface.
-func (m *memcacheCache) DelKeys(ctx context.Context, pattern string) error {
-	// Memcache does not support key pattern matching
-	return nil
+func (m *memcacheCache) DelKeys(_ context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
+	return gcerrors.NewWithScheme(Scheme, fmt.Errorf("DelKeys not supported: %w", cache.ErrPatternMatchingNotSupported))
 }
 
 // Clear deletes all keys from the cache.
 // It implements the cache.Cache interface.
-func (m *memcacheCache) Clear(ctx context.Context) error {
+func (m *memcacheCache) Clear(_ context.Context) error {
 	return m.client.DeleteAll()
 }
 
 // Get gets the value of a key from the cache.
 // It implements the cache.Cache interface.
-func (m *memcacheCache) Get(ctx context.Context, key string) ([]byte, error) {
+func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
+	key = keymod.ModifyKey(key, modifiers...)
 	item, err := m.client.Get(key)
 	if err != nil {
-		return nil, err
+		if err == memcache.ErrCacheMiss {
+			return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w, underlying error: %w", key, cache.ErrKeyNotFound, err))
+		} else {
+			return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error getting key %s, underlying error: %w", key, err))
+		}
 	}
 	return item.Value, nil
 }
 
 // Set sets a key to a value in the cache.
 // It implements the cache.Cache interface.
-func (m *memcacheCache) Set(ctx context.Context, key string, value interface{}) error {
+func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
 	item := &memcache.Item{
 		Key:   key,
 		Value: []byte(value.(string)),
 	}
-	return m.client.Set(item)
+	err := m.client.Set(item)
+	if err != nil {
+		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error setting key %s: %w", key, err))
+	}
+	return nil
 }
 
 // SetWithExpiry sets a key to a value in the cache with an expiry time.
 // It implements the cache.Cache interface.
-func (m *memcacheCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration) error {
+func (m *memcacheCache) SetWithExpiry(_ context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
 	item := &memcache.Item{
 		Key:        key,
 		Value:      []byte(value.(string)),
 		Expiration: int32(expiry.Seconds()),
 	}
-	return m.client.Set(item)
+	err := m.client.Set(item)
+	if err != nil {
+		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error setting key %s with expiry: %w", key, err))
+	}
+	return nil
+}
+
+// Ping implements cache.Cache.
+func (m *memcacheCache) Ping(ctx context.Context) error {
+	return m.client.Ping()
+}
+
+// Close implements cache.Cache.
+func (m *memcacheCache) Close() error {
+	return m.client.Close()
 }
