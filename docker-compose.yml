@@ -1,0 +1,51 @@
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  memcached:
+    image: memcached:latest
+    ports:
+      - "11211:11211"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "echo",
+          "stats",
+          "|",
+          "nc",
+          "localhost",
+          "11211"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis-cluster:
+    # Switch to latest once this issue is resolved: https://github.com/Grokzen/docker-redis-cluster/issues/162
+    image: grokzen/redis-cluster:7.0.10
+    environment:
+      - REDIS_CLUSTER_IP=0.0.0.0
+    ports:
+      - "7000-7005:7000-7005"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-c",
+          "-p",
+          "7000",
+          "cluster",
+          "info"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
