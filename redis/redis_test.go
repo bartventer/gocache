@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"net/url"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,19 +13,52 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const defaultAddr = "localhost:6380"
 
-// newRedisCache creates a new Redis cache with a test client.
-func newRedisCache(t *testing.T) *redisCache {
+// setupRedis creates a new Redis cache with a test container.
+func setupRedis(t *testing.T) *redisCache {
 	t.Helper()
-	client := redis.NewClient(&redis.Options{
-		Addr: defaultAddr,
+
+	// Create a new Redis container
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		FromDockerfile: testcontainers.FromDockerfile{
+			Context:    ".",
+			Dockerfile: filepath.Join("testdata", "Dockerfile"),
+		},
+		ExposedPorts: []string{"6379"},
+		WaitingFor:   wait.ForLog("Ready to accept connections"),
+	}
+	redisC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
 	})
-	err := client.Ping(context.Background()).Err()
 	if err != nil {
-		t.FailNow()
+		t.Fatalf("Failed to start Redis container: %v", err)
+	}
+	t.Cleanup(func() {
+		if cleanupErr := redisC.Terminate(ctx); cleanupErr != nil {
+			t.Fatalf("Failed to terminate Redis container: %v", cleanupErr)
+		}
+	})
+
+	// Get the Redis container's host and port
+	endpoint, err := redisC.Endpoint(ctx, "")
+	if err != nil {
+		t.Fatalf("Failed to get Redis container endpoint: %v", err)
+	}
+
+	// Create a new Redis cache
+	client := redis.NewClient(&redis.Options{
+		Addr: endpoint,
+	})
+	err = client.Ping(context.Background()).Err()
+	if err != nil {
+		t.Fatalf("Failed to ping Redis container: %v", err)
 	}
 	c := &redisCache{client: client, config: &cache.Config{CountLimit: 100}}
 	t.Cleanup(func() {
@@ -57,7 +91,7 @@ func TestRedisCache_New(t *testing.T) {
 }
 
 func TestRedisCache_Count(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue1"
@@ -75,7 +109,7 @@ func TestRedisCache_Count(t *testing.T) {
 }
 
 func TestRedisCache_Exists(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 
@@ -92,7 +126,7 @@ func TestRedisCache_Exists(t *testing.T) {
 }
 
 func TestRedisCache_Del(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -115,7 +149,7 @@ func TestRedisCache_Del(t *testing.T) {
 }
 
 func TestRedisCache_DelKeys(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	keys := []string{"testKey1", "testKey2", "testKey3"}
 	hashTag := testutil.UniqueKey(t)
@@ -140,7 +174,7 @@ func TestRedisCache_DelKeys(t *testing.T) {
 }
 
 func TestRedisCache_Clear(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -158,7 +192,7 @@ func TestRedisCache_Clear(t *testing.T) {
 }
 
 func TestRedisCache_Get(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -181,7 +215,7 @@ func TestRedisCache_Get(t *testing.T) {
 }
 
 func TestRedisCache_Set(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -198,7 +232,7 @@ func TestRedisCache_Set(t *testing.T) {
 }
 
 func TestRedisCache_SetWithExpiry(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -223,14 +257,14 @@ func TestRedisCache_SetWithExpiry(t *testing.T) {
 }
 
 func TestRedisCache_Ping(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	err := c.Ping(context.Background())
 	require.NoError(t, err)
 }
 
 func TestRedisCache_Close(t *testing.T) {
-	c := newRedisCache(t)
+	c := setupRedis(t)
 
 	err := c.Close()
 	require.NoError(t, err)

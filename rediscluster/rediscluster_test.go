@@ -3,6 +3,7 @@ package rediscluster
 import (
 	"context"
 	"net/url"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 var clusterNodes = []string{
@@ -23,15 +26,47 @@ var clusterNodes = []string{
 	"localhost:7005",
 }
 
-// newRedisCache creates a new Redis cache with a test client.
-func newRedisClusterCache(t *testing.T) *redisClusterCache {
+// setupRedisCluster creates a new Redis cluster container.
+func setupRedisClusterCache(t *testing.T) *redisClusterCache {
 	t.Helper()
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: clusterNodes,
+
+	// Create a new Redis cluster container
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		FromDockerfile: testcontainers.FromDockerfile{
+			Context:    ".",
+			Dockerfile: filepath.Join("testdata", "Dockerfile"),
+		},
+		ExposedPorts: []string{"7000-7005"},
+		WaitingFor:   wait.ForLog("Cluster state ok"),
+	}
+	redisClusterC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
 	})
-	err := client.Ping(context.Background()).Err()
 	if err != nil {
-		t.FailNow()
+		t.Fatalf("Failed to start Redis cluster container: %v", err)
+	}
+	t.Cleanup(func() {
+		if cleanupErr := redisClusterC.Terminate(ctx); cleanupErr != nil {
+			t.Fatalf("Failed to terminate Redis cluster container: %v", cleanupErr)
+		}
+	})
+
+	// Get the Redis cluster container's host and port
+	endpoint, err := redisClusterC.Endpoint(ctx, "")
+	if err != nil {
+		t.Fatalf("Failed to get Redis cluster container endpoint: %v", err)
+	}
+
+	// Create a new Redis cluster client
+	client := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs: []string{endpoint},
+	})
+
+	err = client.Ping(context.Background()).Err()
+	if err != nil {
+		t.Fatalf("Failed to ping Redis cluster container: %v", err)
 	}
 	c := &redisClusterCache{client: client, config: &cache.Config{CountLimit: 100}}
 	t.Cleanup(func() {
@@ -64,7 +99,7 @@ func TestRedisCache_New(t *testing.T) {
 }
 
 func TestRedisClusterCache_Count(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue1"
@@ -82,7 +117,7 @@ func TestRedisClusterCache_Count(t *testing.T) {
 }
 
 func TestRedisClusterCache_Exists(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 
@@ -99,7 +134,7 @@ func TestRedisClusterCache_Exists(t *testing.T) {
 }
 
 func TestRedisClusterCache_Del(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -122,7 +157,7 @@ func TestRedisClusterCache_Del(t *testing.T) {
 }
 
 func TestRedisClusterCache_DelKeys(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	keys := []string{"testKey1", "testKey2", "testKey3", "testKey4", "testKey5"}
 	hashTag := testutil.UniqueKey(t)
@@ -151,7 +186,7 @@ func TestRedisClusterCache_DelKeys(t *testing.T) {
 }
 
 func TestRedisClusterCache_Clear(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -169,7 +204,7 @@ func TestRedisClusterCache_Clear(t *testing.T) {
 }
 
 func TestRedisClusterCache_Get(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -191,7 +226,7 @@ func TestRedisClusterCache_Get(t *testing.T) {
 }
 
 func TestRedisClusterCache_Set(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -208,7 +243,7 @@ func TestRedisClusterCache_Set(t *testing.T) {
 }
 
 func TestRedisClusterCache_SetWithExpiry(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	key := testutil.UniqueKey(t) + time.Now().String()
 	value := "testValue"
@@ -233,14 +268,14 @@ func TestRedisClusterCache_SetWithExpiry(t *testing.T) {
 }
 
 func TestRedisClusterCache_Ping(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	err := c.Ping(context.Background())
 	require.NoError(t, err)
 }
 
 func TestRedisClusterCache_Close(t *testing.T) {
-	c := newRedisClusterCache(t)
+	c := setupRedisClusterCache(t)
 
 	err := c.Close()
 	require.NoError(t, err)

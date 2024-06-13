@@ -3,6 +3,7 @@ package memcache
 import (
 	"context"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,12 +13,56 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const defaultAddr = "localhost:11211"
 
 // malformedKey is a key that is too long which will trigger the [memcache.ErrMalformedKey] error.
 var malformedKey = strings.Repeat("a", 251)
+
+// setupMemcached creates a new Memcached container.
+func setupMemcached(t *testing.T) *memcacheCache {
+	t.Helper()
+
+	// Create a new Memcached container
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		FromDockerfile: testcontainers.FromDockerfile{
+			Context:    ".",
+			Dockerfile: filepath.Join("testdata", "Dockerfile"),
+		},
+		ExposedPorts: []string{"11211"},
+		WaitingFor:   wait.ForLog("server is ready"),
+	}
+	memcachedC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to start Memcached container: %v", err)
+	}
+	t.Cleanup(func() {
+		if cleanupErr := memcachedC.Terminate(ctx); cleanupErr != nil {
+			t.Fatalf("Failed to terminate Memcached container: %v", cleanupErr)
+		}
+	})
+
+	// Get the Memcached container's host and port
+	endpoint, err := memcachedC.Endpoint(ctx, "")
+	if err != nil {
+		t.Fatalf("Failed to get Memcached container endpoint: %v", err)
+	}
+
+	// Create a new Memcached client
+	client := memcache.New(endpoint)
+	err = client.Ping()
+	if err != nil {
+		t.Fatalf("Failed to ping Memcached container: %v", err)
+	}
+	return &memcacheCache{client: client, config: &cache.Config{CountLimit: 100}}
+}
 
 func TestMemcacheCache_OpenCacheURL(t *testing.T) {
 	m := &memcacheCache{}
@@ -30,21 +75,6 @@ func TestMemcacheCache_OpenCacheURL(t *testing.T) {
 	assert.NotNil(t, m.client)
 }
 
-// newMemcacheCache creates a new Memcache cache with a test client.
-func newMemcacheCache(t *testing.T) *memcacheCache {
-	t.Helper()
-	client := memcache.New(defaultAddr)
-	err := client.Ping()
-	if err != nil {
-		t.FailNow()
-	}
-	c := &memcacheCache{client: client, config: &cache.Config{CountLimit: 100}}
-	t.Cleanup(func() {
-		client.Close()
-	})
-	return c
-}
-
 func TestMemcacheCache_New(t *testing.T) {
 	ctx := context.Background()
 	config := cache.Config{}
@@ -55,7 +85,7 @@ func TestMemcacheCache_New(t *testing.T) {
 }
 
 func TestMemcacheCache_Exists(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 
@@ -82,7 +112,7 @@ func TestMemcacheCache_Exists(t *testing.T) {
 }
 
 func TestMemcacheCache_Del(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 
@@ -109,7 +139,7 @@ func TestMemcacheCache_Del(t *testing.T) {
 }
 
 func TestMemcacheCache_Clear(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 
@@ -126,7 +156,7 @@ func TestMemcacheCache_Clear(t *testing.T) {
 }
 
 func TestMemcacheCache_Get(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 
@@ -153,7 +183,7 @@ func TestMemcacheCache_Get(t *testing.T) {
 }
 
 func TestMemcacheCache_Set(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 
@@ -174,7 +204,7 @@ func TestMemcacheCache_Set(t *testing.T) {
 }
 
 func TestMemcacheCache_SetWithExpiry(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
 	expiry := 1 * time.Second
@@ -205,28 +235,28 @@ func TestMemcacheCache_SetWithExpiry(t *testing.T) {
 // Pattern matching operations not supported by Memcache
 
 func TestMemcacheCache_Count(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	_, err := c.Count(context.Background(), "*")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
 }
 
 func TestMemcacheCache_DelKeys(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 	err := c.DelKeys(context.Background(), "*")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
 }
 
 func TestMemcacheCache_Ping(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 
 	err := c.Ping(context.Background())
 	require.NoError(t, err)
 }
 
 func TestMemcacheCache_Close(t *testing.T) {
-	c := newMemcacheCache(t)
+	c := setupMemcached(t)
 
 	err := c.Close()
 	require.NoError(t, err)
