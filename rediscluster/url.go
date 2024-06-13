@@ -24,7 +24,7 @@ var paramKeyBlacklist = map[string]bool{
 //
 // The URL should have the following format:
 //
-//	redis://host1:port1,host2:port2,host3:port3
+//	rediscluster://<host1>:<port1>,<host2>:<port2>,...,<hostN>:<portN>[?query]
 //
 // All cluster options can be set as query parameters, except for the following:
 //   - Addrs
@@ -33,10 +33,10 @@ var paramKeyBlacklist = map[string]bool{
 //
 // Example:
 //
-//	redis://localhost:6379,localhost:6380?maxretries=5&minretrybackoff=1000
+//	redis://localhost:6379,localhost:6380?maxretries=5&minretrybackoff=1000ms
 //
 // This will return a redis.ClusterOptions with the Addrs set to ["localhost:6379", "localhost:6380"],
-// MaxRetries set to 5, and MinRetryBackoff set to 1000.
+// MaxRetries set to 5, and MinRetryBackoff set to 1000ms.
 func optionsFromURL(u *url.URL, paramOverrides map[string]string) (redis.ClusterOptions, error) {
 	clusterOpts := redis.ClusterOptions{}
 
@@ -54,6 +54,7 @@ func optionsFromURL(u *url.URL, paramOverrides map[string]string) (redis.Cluster
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		WeaklyTypedInput: true,
 		Result:           &clusterOpts,
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		MatchName: func(mapKey, fieldName string) bool {
 			return strings.EqualFold(mapKey, fieldName) && !paramKeyBlacklist[mapKey]
 		},

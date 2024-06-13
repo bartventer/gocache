@@ -2,22 +2,68 @@ package rediscluster
 
 import (
 	"context"
+	"net/url"
 	"testing"
 	"time"
 
-	"github.com/bartventer/gocache/cache"
+	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/keymod"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestRedisClusterCache_Count(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
+var clusterNodes = []string{
+	"localhost:7000",
+	"localhost:7001",
+	"localhost:7002",
+	"localhost:7003",
+	"localhost:7004",
+	"localhost:7005",
+}
 
-	c := &redisClusterCache{client: client}
+// newRedisCache creates a new Redis cache with a test client.
+func newRedisClusterCache(t *testing.T) *redisClusterCache {
+	t.Helper()
+	client := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs: clusterNodes,
+	})
+	err := client.Ping(context.Background()).Err()
+	if err != nil {
+		t.FailNow()
+	}
+	c := &redisClusterCache{client: client, config: &cache.Config{CountLimit: 100}}
+	t.Cleanup(func() {
+		client.Close()
+	})
+	return c
+}
+
+func TestRedisCache_OpenCacheURL(t *testing.T) {
+	r := &redisClusterCache{}
+
+	u, err := url.Parse("rediscluster://localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005?maxretries=5&minretrybackoff=1000ms")
+	require.NoError(t, err)
+
+	_, err = r.OpenCacheURL(context.Background(), u, &cache.Options{})
+	require.NoError(t, err)
+	assert.NotNil(t, r.client)
+}
+
+func TestRedisCache_New(t *testing.T) {
+	ctx := context.Background()
+	config := cache.Config{}
+	options := redis.ClusterOptions{
+		Addrs: clusterNodes,
+	}
+
+	r := New(ctx, &config, options)
+	require.NotNil(t, r)
+	assert.NotNil(t, r.client)
+}
+
+func TestRedisClusterCache_Count(t *testing.T) {
+	c := newRedisClusterCache(t)
 
 	key := "testKey1"
 	value := "testValue1"
@@ -26,7 +72,7 @@ func TestRedisClusterCache_Count(t *testing.T) {
 		t.Fatalf("Failed to set key: %v", err)
 	}
 	t.Cleanup(func() {
-		client.Del(context.Background(), key)
+		c.client.Del(context.Background(), key)
 	})
 
 	count, err := c.Count(context.Background(), "*")
@@ -35,12 +81,7 @@ func TestRedisClusterCache_Count(t *testing.T) {
 }
 
 func TestRedisClusterCache_Exists(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
-
-	c := &redisClusterCache{client: client}
+	c := newRedisClusterCache(t)
 	key := "testKey"
 	value := "testValue"
 
@@ -48,7 +89,7 @@ func TestRedisClusterCache_Exists(t *testing.T) {
 		t.Fatalf("Failed to set key: %v", err)
 	}
 	t.Cleanup(func() {
-		client.Del(context.Background(), key)
+		c.client.Del(context.Background(), key)
 	})
 
 	exists, err := c.Exists(context.Background(), key)
@@ -57,12 +98,7 @@ func TestRedisClusterCache_Exists(t *testing.T) {
 }
 
 func TestRedisClusterCache_Del(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
-
-	c := &redisClusterCache{client: client}
+	c := newRedisClusterCache(t)
 
 	key := "testKey"
 	value := "testValue"
@@ -81,45 +117,40 @@ func TestRedisClusterCache_Del(t *testing.T) {
 	// Non-existent key
 	err = c.Del(context.Background(), "nonExistentKey")
 	require.Error(t, err)
-	assert.EqualError(t, cache.ErrKeyNotFound, err.Error())
+	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
 }
 
 func TestRedisClusterCache_DelKeys(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
+	c := newRedisClusterCache(t)
 
-	c := &redisClusterCache{client: client}
-
-	keys := []string{"testKey1", "testKey2", "testKey3"}
+	keys := []string{"testKey1", "testKey2", "testKey3", "testKey4", "testKey5"}
+	hashTag := "testHashTag"
 	for _, key := range keys {
-		if err := c.Set(context.Background(), key, "testValue"); err != nil {
+		if err := c.Set(context.Background(), key, "testValue", keymod.HashTagModifier(hashTag)); err != nil {
 			t.Fatalf("Failed to set key: %v", err)
 		}
 	}
 
-	err := c.DelKeys(context.Background(), "testKey*")
+	count, err := c.Count(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
 	require.NoError(t, err)
-
-	for _, key := range keys {
-		exists, errExist := c.Exists(context.Background(), key)
-		require.NoError(t, errExist)
-		assert.False(t, exists)
+	if !assert.Equal(t, int64(5), count) {
+		t.FailNow()
 	}
 
+	err = c.DelKeys(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
+	require.NoError(t, err)
+
+	res, err := c.Count(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), res)
+
 	// Non-existent key
-	err = c.DelKeys(context.Background(), "nonExistentKey*")
+	err = c.DelKeys(context.Background(), "nonExistentKey*", keymod.HashTagModifier(hashTag))
 	require.NoError(t, err)
 }
 
 func TestRedisClusterCache_Clear(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
-
-	c := &redisClusterCache{client: client}
+	c := newRedisClusterCache(t)
 
 	key := "testKey"
 	value := "testValue"
@@ -137,12 +168,7 @@ func TestRedisClusterCache_Clear(t *testing.T) {
 }
 
 func TestRedisClusterCache_Get(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
-
-	c := &redisClusterCache{client: client}
+	c := newRedisClusterCache(t)
 
 	key := "testKey"
 	value := "testValue"
@@ -151,7 +177,7 @@ func TestRedisClusterCache_Get(t *testing.T) {
 		t.Fatalf("Failed to set key: %v", err)
 	}
 	t.Cleanup(func() {
-		client.Del(context.Background(), key)
+		c.client.Del(context.Background(), key)
 	})
 
 	got, err := c.Get(context.Background(), key)
@@ -164,12 +190,7 @@ func TestRedisClusterCache_Get(t *testing.T) {
 }
 
 func TestRedisClusterCache_Set(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
-
-	c := &redisClusterCache{client: client}
+	c := newRedisClusterCache(t)
 
 	key := "testKey"
 	value := "testValue"
@@ -177,7 +198,7 @@ func TestRedisClusterCache_Set(t *testing.T) {
 	err := c.Set(context.Background(), key, value)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		client.Del(context.Background(), key)
+		c.client.Del(context.Background(), key)
 	})
 
 	got, err := c.Get(context.Background(), key)
@@ -186,12 +207,7 @@ func TestRedisClusterCache_Set(t *testing.T) {
 }
 
 func TestRedisClusterCache_SetWithExpiry(t *testing.T) {
-	// Mock the Redis Cluster client
-	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: []string{"localhost:6379"},
-	})
-
-	c := &redisClusterCache{client: client}
+	c := newRedisClusterCache(t)
 
 	key := "testKey"
 	value := "testValue"
@@ -200,7 +216,7 @@ func TestRedisClusterCache_SetWithExpiry(t *testing.T) {
 	err := c.SetWithExpiry(context.Background(), key, value, expiry)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		client.Del(context.Background(), key)
+		c.client.Del(context.Background(), key)
 	})
 
 	got, err := c.Get(context.Background(), key)
@@ -211,5 +227,24 @@ func TestRedisClusterCache_SetWithExpiry(t *testing.T) {
 	time.Sleep(expiry)
 
 	_, err = c.Get(context.Background(), key)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
+}
+
+func TestRedisClusterCache_Ping(t *testing.T) {
+	c := newRedisClusterCache(t)
+
+	err := c.Ping(context.Background())
+	require.NoError(t, err)
+}
+
+func TestRedisClusterCache_Close(t *testing.T) {
+	c := newRedisClusterCache(t)
+
+	err := c.Close()
+	require.NoError(t, err)
+
+	// After closing, pinging should result in an error
+	err = c.Ping(context.Background())
 	require.Error(t, err)
 }
