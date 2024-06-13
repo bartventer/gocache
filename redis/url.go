@@ -8,11 +8,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// paramKeyBlacklist is a list of keys that should not be set on the Redis Cluster options.
+// paramKeyBlacklist is a list of keys that should not be set on the Redis options.
 var paramKeyBlacklist = map[string]bool{
 	"addr":                       true,
 	"newclient":                  true,
-	"clusterslots":               true,
 	"dialer":                     true,
 	"onconnect":                  true,
 	"credentialsprovider":        true,
@@ -33,10 +32,10 @@ var paramKeyBlacklist = map[string]bool{
 //
 // Example:
 //
-//	redis://localhost:6379?maxretries=5&minretrybackoff=1000
+//	redis://localhost:6379?maxretries=5&minretrybackoff=512ms
 //
 // This will return a redis.Options with the Addr set to "localhost:6379",
-// MaxRetries set to 5, and MinRetryBackoff set to 1000.
+// MaxRetries set to 5, and MinRetryBackoff set to 512ms.
 func optionsFromURL(u *url.URL, paramOverrides map[string]string) (redis.Options, error) {
 	opts := redis.Options{}
 
@@ -54,6 +53,7 @@ func optionsFromURL(u *url.URL, paramOverrides map[string]string) (redis.Options
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		WeaklyTypedInput: true,
 		Result:           &opts,
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		MatchName: func(mapKey, fieldName string) bool {
 			return strings.EqualFold(mapKey, fieldName) && !paramKeyBlacklist[mapKey]
 		},

@@ -28,13 +28,13 @@ Example via generic cache interface:
 	    "log"
 	    "net/url"
 
-	    "github.com/bartventer/gocache"
+	    cache "github.com/bartventer/gocache"
 	    _ "github.com/bartventer/gocache/redis"
 	)
 
 	func main() {
 	    ctx := context.Background()
-	    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000"
+	    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000ms"
 	    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
 	    if err != nil {
 	        log.Fatalf("Failed to initialize cache: %v", err)
@@ -66,11 +66,14 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"sync"
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/internal/gcerrors"
+	"github.com/bartventer/gocache/keymod"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -89,7 +92,8 @@ type redisCache struct {
 }
 
 // New returns a new Redis cache implementation.
-func New(ctx context.Context, config cache.Config, options redis.Options) *redisCache {
+func New(ctx context.Context, config *cache.Config, options redis.Options) *redisCache {
+	config.Revise()
 	r := &redisCache{}
 	r.init(ctx, config, options)
 	return r
@@ -100,9 +104,9 @@ var _ cache.Cache = &redisCache{}
 
 // OpenCacheURL opens a new Redis cache using the given URL and options.
 // It implements the cache.CacheURLOpener interface.
-func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL, options cache.Options) (cache.Cache, error) {
+func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
 	// Parse the URL into Redis options
-	clusterOpts, err := optionsFromURL(u, options.ExtraParams)
+	clusterOpts, err := optionsFromURL(u, options.Metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -111,73 +115,76 @@ func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL, options cache
 	clusterOpts.CredentialsProviderContext = options.CredentialsProvider
 
 	// Initialize the Redis client
-	r.init(ctx, options.Config, clusterOpts)
+	r.init(ctx, &options.Config, clusterOpts)
 	return r, nil
 }
 
 // init initializes the Redis client with the given options.
 // It implements the cache.Cache interface.
-func (r *redisCache) init(_ context.Context, config cache.Config, options redis.Options) {
+func (r *redisCache) init(_ context.Context, config *cache.Config, options redis.Options) {
 	r.once.Do(func() {
-		r.config = &config
+		r.config = config
 		r.client = redis.NewClient(&options)
 	})
 }
 
 // Count implements cache.Cache.
-func (r *redisCache) Count(ctx context.Context, pattern string) (int64, error) {
-	keys, _, err := r.client.Scan(ctx, 0, pattern, r.config.CountLimit).Result()
-	if err != nil {
-		return 0, err
+func (r *redisCache) Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
+	pattern = keymod.ModifyKey(pattern, modifiers...)
+	var count int64
+	iter := r.client.Scan(ctx, 0, pattern, r.config.CountLimit).Iterator()
+	for iter.Next(ctx) {
+		count++
 	}
-	return int64(len(keys)), nil
+	if err := iter.Err(); err != nil {
+		return 0, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error counting keys: %w", err))
+	}
+	return count, nil
 }
 
 // Exists implements cache.Cache.
-func (r *redisCache) Exists(ctx context.Context, key string) (bool, error) {
+func (r *redisCache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
+	key = keymod.ModifyKey(key, modifiers...)
 	n, err := r.client.Exists(ctx, key).Result()
-	return n > 0, err
+	if err != nil {
+		return false, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error checking key %s: %w", key, err))
+	}
+	return n > 0, nil
 }
 
 // Del deletes a key from the cache.
 // It implements the cache.Cache interface.
-func (r *redisCache) Del(ctx context.Context, key string) error {
-	result := r.client.Del(ctx, key)
-	if result.Err() != nil {
-		return result.Err()
+func (r *redisCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
+	delCount, err := r.client.Del(ctx, key).Result()
+	if err != nil {
+		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting key %s: %w", key, err))
 	}
-	if result.Val() == 0 {
-		return cache.ErrKeyNotFound
+	if delCount == 0 {
+		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w", key, cache.ErrKeyNotFound))
 	}
 	return nil
 }
 
 // DelKeys deletes all keys matching a pattern from the cache.
 // It implements the cache.Cache interface.
-func (r *redisCache) DelKeys(ctx context.Context, pattern string) error {
-	var cursor uint64
-	pipeline := r.client.Pipeline()
-
-	for {
-		var keys []string
-		var err error
-
-		keys, cursor, err = r.client.Scan(ctx, cursor, pattern, 10).Result()
+func (r *redisCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
+	pattern = keymod.ModifyKey(pattern, modifiers...)
+	iter := r.client.Scan(ctx, 0, pattern, r.config.CountLimit).Iterator()
+	var keys []string
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error scanning keys: %w", err))
+	}
+	if len(keys) > 0 {
+		_, err := r.client.Del(ctx, keys...).Result()
 		if err != nil {
-			return err
-		}
-
-		for _, key := range keys {
-			pipeline.Del(ctx, key)
-		}
-
-		if cursor == 0 {
-			break
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting keys: %w", err))
 		}
 	}
-
-	_, err := pipeline.Exec(ctx)
-	return err
+	return nil
 }
 
 // Clear deletes all keys from the cache.
@@ -188,18 +195,39 @@ func (r *redisCache) Clear(ctx context.Context) error {
 
 // Get gets the value of a key from the cache.
 // It implements the cache.Cache interface.
-func (r *redisCache) Get(ctx context.Context, key string) ([]byte, error) {
-	return r.client.Get(ctx, key).Bytes()
+func (r *redisCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
+	key = keymod.ModifyKey(key, modifiers...)
+	val, err := r.client.Get(ctx, key).Bytes()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w, underlying error: %w", key, cache.ErrKeyNotFound, err))
+		} else {
+			return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error getting key %s: %w", key, err))
+		}
+	}
+	return val, nil
 }
 
 // Set sets a key to a value in the cache.
 // It implements the cache.Cache interface.
-func (r *redisCache) Set(ctx context.Context, key string, value interface{}) error {
+func (r *redisCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
 	return r.client.Set(ctx, key, value, 0).Err()
 }
 
 // SetWithExpiry sets a key to a value in the cache with an expiry time.
 // It implements the cache.Cache interface.
-func (r *redisCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration) error {
+func (r *redisCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
 	return r.client.Set(ctx, key, value, expiry).Err()
+}
+
+// Close implements cache.Cache.
+func (r *redisCache) Close() error {
+	return r.client.Close()
+}
+
+// Ping implements cache.Cache.
+func (r *redisCache) Ping(ctx context.Context) error {
+	return r.client.Ping(ctx).Err()
 }
