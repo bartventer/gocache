@@ -27,7 +27,6 @@ jobs:
             - name: Test and Coverage
               shell: bash
               run: |
-                make up
                 make test
 
             - name: Coveralls
