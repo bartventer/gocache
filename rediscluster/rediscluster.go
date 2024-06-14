@@ -195,7 +195,9 @@ func (r *redisClusterCache) DelKeys(ctx context.Context, pattern string, modifie
 
 // Clear implements cache.Cache.
 func (r *redisClusterCache) Clear(ctx context.Context) error {
-	return r.client.FlushAll(ctx).Err()
+	return r.client.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
+		return client.FlushAll(ctx).Err()
+	})
 }
 
 // Get implements cache.Cache.
