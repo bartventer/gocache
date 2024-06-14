@@ -1,5 +1,5 @@
-// Package cachetest provides conformance tests for cache implementations.
-package cachetest
+// Package drivertest provides conformance tests for cache implementations.
+package drivertest
 
 import (
 	"context"
