@@ -86,7 +86,9 @@ func setupCache(t *testing.T) *redisCache {
 	}
 	// Create a new Redis cache
 	client := redis.NewClient(&redis.Options{
-		Addr: endpoint,
+		Addr:            endpoint,
+		MaxRetries:      5,
+		MinRetryBackoff: 1000 * time.Millisecond,
 	})
 	t.Cleanup(func() {
 		client.Close()
