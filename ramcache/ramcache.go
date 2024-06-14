@@ -131,10 +131,10 @@ func (r *ramcache) init(_ context.Context, config *cache.Config, options Options
 }
 
 // New returns a new in-memory cache implementation.
-func New(_ context.Context, config *cache.Config, options Options) *ramcache {
+func New(ctx context.Context, config *cache.Config, options Options) *ramcache {
 	config.Revise()
 	r := &ramcache{}
-	r.init(context.Background(), config, options)
+	r.init(ctx, config, options)
 	return r
 }
 
