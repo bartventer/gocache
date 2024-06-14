@@ -228,7 +228,7 @@ func (r *redisClusterCache) SetWithExpiry(ctx context.Context, key string, value
 
 // Ping implements cache.Cache.
 func (r *redisClusterCache) Ping(ctx context.Context) error {
-	return r.client.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
+	return r.client.ForEachShard(ctx, func(ctx context.Context, client *redis.Client) error {
 		return client.Ping(ctx).Err()
 	})
 }
