@@ -42,7 +42,6 @@ Example via [memcache.New] constructor:
 
 	    "github.com/bartventer/gocache"
 	    "github.com/bartventer/gocache/memcache"
-	    "github.com/bradfitz/gomemcache/memcache"
 	)
 
 	func main() {
