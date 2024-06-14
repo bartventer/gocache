@@ -200,10 +200,6 @@ func main() {
 }
 ```
 
-## Limitations
-
-Please note that due to the limitations of the RAM Cache, pattern matching operations are not supported. This includes the `Count` and `DelKeys` methods, which will return a `ErrPatternMatchingNotSupported` error if called.
-
 ## Contributing
 
 All contributions are welcome! Open a pull request to request a feature or submit a bug report.
