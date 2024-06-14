@@ -8,7 +8,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
-	"github.com/bartventer/gocache/internal/testutil"
+	"github.com/bartventer/gocache/internal/cachetest"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
@@ -23,11 +23,30 @@ const (
 	defaultAddr = "localhost:" + defaultPort
 )
 
-// malformedKey is a key that is too long which will trigger the [memcache.ErrMalformedKey] error.
-var malformedKey = strings.Repeat("a", 251)
+func TestMemcacheCache_OpenCacheURL(t *testing.T) {
+	t.Parallel()
+	m := &memcacheCache{}
 
-// setupMemcached creates a new Memcached container.
-func setupMemcached(t *testing.T) *memcacheCache {
+	u, err := url.Parse("memcache://" + defaultAddr)
+	require.NoError(t, err)
+
+	_, err = m.OpenCacheURL(context.Background(), u, &cache.Options{})
+	require.NoError(t, err)
+	assert.NotNil(t, m.client)
+}
+
+func TestMemcacheCache_New(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	config := cache.Config{}
+
+	m := New(ctx, &config, defaultAddr)
+	require.NotNil(t, m)
+	assert.NotNil(t, m.client)
+}
+
+// setupCache creates a new Memcached container.
+func setupCache(t *testing.T) *memcacheCache {
 	t.Helper()
 	// Create a new Memcached container
 	ctx := context.Background()
@@ -75,216 +94,60 @@ func setupMemcached(t *testing.T) *memcacheCache {
 	return &memcacheCache{client: client, config: &cache.Config{CountLimit: 100}}
 }
 
-func TestMemcacheCache_OpenCacheURL(t *testing.T) {
+func TestMemcacheCache_MalformedKey(t *testing.T) {
 	t.Parallel()
-	m := &memcacheCache{}
-
-	u, err := url.Parse("memcache://" + defaultAddr)
-	require.NoError(t, err)
-
-	_, err = m.OpenCacheURL(context.Background(), u, &cache.Options{})
-	require.NoError(t, err)
-	assert.NotNil(t, m.client)
-}
-
-func TestMemcacheCache_New(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	config := cache.Config{}
-
-	m := New(ctx, &config, defaultAddr)
-	require.NotNil(t, m)
-	assert.NotNil(t, m.client)
-}
-
-func TestMemcacheCache_Exists(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	key := testutil.UniqueKey(t)
+	c := setupCache(t)
+	// malformedKey is a key that is too long which will trigger the [memcache.ErrMalformedKey] error.
+	malformedKey := strings.Repeat("a", 251)
 	value := "testValue"
 
-	if err := c.Set(context.Background(), key, value); err != nil {
-		t.Fatalf("Failed to set key: %v", err)
-	}
-	t.Cleanup(func() {
-		c.client.Delete(key)
-	})
-
-	exists, err := c.Exists(context.Background(), key)
-	require.NoError(t, err)
-	assert.True(t, exists)
-
-	// Non-existent key
-	exists, err = c.Exists(context.Background(), "nonExistentKey")
-	require.NoError(t, err)
-	assert.False(t, exists)
-
-	// Malformed key
-	_, err = c.Exists(context.Background(), malformedKey)
+	// Test Exists function with malformed key
+	_, err := c.Exists(context.Background(), malformedKey)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
-}
 
-func TestMemcacheCache_Del(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	key := testutil.UniqueKey(t)
-	value := "testValue"
-
-	if err := c.Set(context.Background(), key, value); err != nil {
-		t.Fatalf("Failed to set key: %v", err)
-	}
-
-	err := c.Del(context.Background(), key)
-	require.NoError(t, err)
-
-	exists, err := c.Exists(context.Background(), key)
-	require.NoError(t, err)
-	assert.False(t, exists)
-
-	// Non-existent key
-	err = c.Del(context.Background(), "nonExistentKey")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
-
-	// Malformed key
+	// Test Del function with malformed key
 	err = c.Del(context.Background(), malformedKey)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
-}
 
-func TestMemcacheCache_Clear(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	key := testutil.UniqueKey(t)
-	value := "testValue"
-
-	if err := c.Set(context.Background(), key, value); err != nil {
-		t.Fatalf("Failed to set key: %v", err)
-	}
-
-	err := c.Clear(context.Background())
-	require.NoError(t, err)
-
-	exists, err := c.Exists(context.Background(), key)
-	require.NoError(t, err)
-	assert.False(t, exists)
-}
-
-func TestMemcacheCache_Get(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	key := testutil.UniqueKey(t)
-	value := "testValue"
-
-	if err := c.Set(context.Background(), key, value); err != nil {
-		t.Fatalf("Failed to set key: %v", err)
-	}
-	t.Cleanup(func() {
-		c.client.Delete(key)
-	})
-
-	got, err := c.Get(context.Background(), key)
-	require.NoError(t, err)
-	assert.Equal(t, []byte(value), got)
-
-	// Non-existent key
-	_, err = c.Get(context.Background(), "nonExistentKey")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
-
-	// Malformed key
+	// Test Get function with malformed key
 	_, err = c.Get(context.Background(), malformedKey)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
-}
 
-func TestMemcacheCache_Set(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	key := testutil.UniqueKey(t)
-	value := "testValue"
-
-	err := c.Set(context.Background(), key, value)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		c.client.Delete(key)
-	})
-
-	got, err := c.Get(context.Background(), key)
-	require.NoError(t, err)
-	assert.Equal(t, []byte(value), got)
-
-	// Malformed key
+	// Test Set function with malformed key
 	err = c.Set(context.Background(), malformedKey, value)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
 }
 
-func TestMemcacheCache_SetWithExpiry(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	key := testutil.UniqueKey(t)
-	value := "testValue"
-	expiry := 1 * time.Second
-
-	err := c.SetWithExpiry(context.Background(), key, value, expiry)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		c.client.Delete(key)
-	})
-
-	got, err := c.Get(context.Background(), key)
-	require.NoError(t, err)
-	assert.Equal(t, []byte(value), got)
-
-	// Wait for the key to expire
-	time.Sleep(expiry + 1*time.Second)
-
-	_, err = c.Get(context.Background(), key)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), cache.ErrKeyNotFound.Error())
-
-	// Malformed key
-	err = c.SetWithExpiry(context.Background(), malformedKey, value, expiry)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
+type harness struct {
+	cache *memcacheCache
 }
 
-// Pattern matching operations not supported by Memcache
-
-func TestMemcacheCache_Count(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	_, err := c.Count(context.Background(), "*")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
+func (h *harness) MakeCache(ctx context.Context) (cache.Cache, error) {
+	return h.cache, nil
 }
 
-func TestMemcacheCache_DelKeys(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-	err := c.DelKeys(context.Background(), "*")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
+func (h *harness) Close() {
+	// Cleanup is handled in setup function
 }
 
-func TestMemcacheCache_Ping(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
-
-	err := c.Ping(context.Background())
-	require.NoError(t, err)
+func (h *harness) Options() cachetest.Options {
+	return cachetest.Options{
+		PatternMatchingDisabled: true, // Memcached does not support pattern matching
+		CloseIsNoop:             true, // Cache can still be used after closing
+	}
 }
 
-func TestMemcacheCache_Close(t *testing.T) {
-	t.Parallel()
-	c := setupMemcached(t)
+func newHarness(ctx context.Context, t *testing.T) (cachetest.Harness, error) {
+	cache := setupCache(t)
+	return &harness{
+		cache: cache,
+	}, nil
+}
 
-	err := c.Close()
-	require.NoError(t, err)
-
-	// After closing, pinging should still succeed because Close is a no-op
-	err = c.Ping(context.Background())
-	require.NoError(t, err)
+func TestConformance(t *testing.T) {
+	cachetest.RunConformanceTests(t, newHarness)
 }
