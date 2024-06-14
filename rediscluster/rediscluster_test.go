@@ -37,11 +37,12 @@ func setupRedisClusterCache(t *testing.T) *redisClusterCache {
 		ExposedPorts: exposedPorts,
 		ConfigModifier: func(c *container.Config) {
 			c.Healthcheck = &container.HealthConfig{
-				Test:        []string{"CMD", "redis-cli", "-c", "-p", "7000", "cluster", "info"},
-				Interval:    30 * time.Second,
-				Timeout:     10 * time.Second,
-				Retries:     3,
-				StartPeriod: 5 * time.Second,
+				Test:          []string{"CMD", "redis-cli", "-c", "-p", "7000", "cluster", "info"},
+				Interval:      30 * time.Second,
+				Timeout:       30 * time.Second,
+				Retries:       5,
+				StartPeriod:   15 * time.Second,
+				StartInterval: 5 * time.Second,
 			}
 		},
 		WaitingFor: wait.ForHealthCheck(),
