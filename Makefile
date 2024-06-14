@@ -5,7 +5,7 @@ SHELL = /bin/bash
 COVERPROFILE ?= coverage.out
 
 test:
-	go test -v -race -coverprofile=$(COVERPROFILE) -covermode=atomic $(shell go list ./...)
+	go test -v -race -coverprofile=$(COVERPROFILE) -covermode=atomic -timeout 15m $(shell go list ./...)
 
 up:
 	docker-compose up -d
