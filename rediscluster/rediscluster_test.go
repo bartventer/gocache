@@ -39,9 +39,9 @@ func setupRedisClusterCache(t *testing.T) *redisClusterCache {
 			c.Healthcheck = &container.HealthConfig{
 				Test:          []string{"CMD", "redis-cli", "-c", "-p", "7000", "cluster", "info"},
 				Interval:      30 * time.Second,
-				Timeout:       30 * time.Second,
+				Timeout:       60 * time.Second,
 				Retries:       5,
-				StartPeriod:   15 * time.Second,
+				StartPeriod:   20 * time.Second,
 				StartInterval: 5 * time.Second,
 			}
 		},
@@ -69,12 +69,16 @@ func setupRedisClusterCache(t *testing.T) *redisClusterCache {
 		clusterNodes = append(clusterNodes, portEndpoint)
 	}
 	client := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: clusterNodes,
+		Addrs:           clusterNodes,
+		MaxRetries:      5,
+		MinRetryBackoff: 1000 * time.Millisecond,
 	})
 	t.Cleanup(func() {
 		client.Close()
 	})
-	err = client.Ping(context.Background()).Err()
+	err = client.ForEachShard(ctx, func(ctx context.Context, client *redis.Client) error {
+		return client.Ping(ctx).Err()
+	})
 	if err != nil {
 		t.Fatalf("Failed to ping Redis cluster container: %v", err)
 	}

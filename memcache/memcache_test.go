@@ -38,9 +38,9 @@ func setupMemcached(t *testing.T) *memcacheCache {
 			c.Healthcheck = &container.HealthConfig{
 				Test:          []string{"CMD", "nc", "-vn", "-w", "1", "localhost", defaultPort},
 				Interval:      30 * time.Second,
-				Timeout:       30 * time.Second,
+				Timeout:       60 * time.Second,
 				Retries:       5,
-				StartPeriod:   15 * time.Second,
+				StartPeriod:   20 * time.Second,
 				StartInterval: 5 * time.Second,
 			}
 		},
