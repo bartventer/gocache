@@ -7,7 +7,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
-	"github.com/bartventer/gocache/internal/cachetest"
+	"github.com/bartventer/gocache/drivertest"
 	"github.com/docker/docker/api/types/container"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -112,14 +112,14 @@ func (h *harness) Close() {
 	// Cleanup is handled in setup function
 }
 
-func (h *harness) Options() cachetest.Options {
-	return cachetest.Options{
+func (h *harness) Options() drivertest.Options {
+	return drivertest.Options{
 		PatternMatchingDisabled: false,
 		CloseIsNoop:             false,
 	}
 }
 
-func newHarness(ctx context.Context, t *testing.T) (cachetest.Harness, error) {
+func newHarness(ctx context.Context, t *testing.T) (drivertest.Harness, error) {
 	cache := setupCache(t)
 	return &harness{
 		cache: cache,
@@ -127,5 +127,5 @@ func newHarness(ctx context.Context, t *testing.T) (cachetest.Harness, error) {
 }
 
 func TestConformance(t *testing.T) {
-	cachetest.RunConformanceTests(t, newHarness)
+	drivertest.RunConformanceTests(t, newHarness)
 }
