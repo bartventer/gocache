@@ -23,6 +23,7 @@ go get -u github.com/bartventer/gocache
 | Redis | [go-redis/redis](https://github.com/go-redis/redis) | [![Go Reference](https://pkg.go.dev/badge/github.com/bartventer/gocache/redis.svg)](https://pkg.go.dev/github.com/bartventer/gocache/redis) |
 | Redis Cluster | [go-redis/redis](https://github.com/go-redis/redis) | [![Go Reference](https://pkg.go.dev/badge/github.com/bartventer/gocache/rediscluster.svg)](https://pkg.go.dev/github.com/bartventer/gocache/rediscluster) |
 | Memcache | [bradfitz/gomemcache](https://github.com/bradfitz/gomemcache) | [![Go Reference](https://pkg.go.dev/badge/github.com/bartventer/gocache/memcache.svg)](https://pkg.go.dev/github.com/bartventer/gocache/memcache) |
+| RAM Cache (in-memory) | [bartventer/gocache](https://github.com/bartventer/gocache) | [![Go Reference](https://pkg.go.dev/badge/github.com/bartventer/gocache/ramcache.svg)](https://pkg.go.dev/github.com/bartventer/gocache/ramcache) |
 
 _Pull requests for additional cache implementations are welcome!_
 
@@ -59,7 +60,6 @@ func main() {
 ```go
 import (
     "context"
-    "log"
 
     "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/redis"
@@ -104,7 +104,6 @@ func main() {
 ```go
 import (
     "context"
-    "log"
 
     "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/rediscluster"
@@ -149,7 +148,6 @@ func main() {
 ```go
 import (
     "context"
-    "log"
 
     "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/memcache"
@@ -161,6 +159,50 @@ func main() {
     // ... use c with the cache.Cache interface
 }
 ```
+
+### RAM Cache (in-memory)
+
+The [ramcache](https://pkg.go.dev/github.com/bartventer/gocache/ramcache) package provides an in-memory cache implementation using a map.
+
+```go
+import (
+    "context"
+    "log"
+
+    cache "github.com/bartventer/gocache"
+    _ "github.com/bartventer/gocache/ramcache"
+)
+
+func main() {
+    ctx := context.Background()
+    c, err := cache.OpenCache(ctx, "ramcache://?defaultttl=5m", cache.Options{})
+    if err != nil {
+        log.Fatalf("Failed to initialize cache: %v", err)
+    }
+    // ... use c with the cache.Cache interface
+}
+```
+
+#### RAM Cache Constructor
+
+```go
+import (
+    "context"
+
+    "github.com/bartventer/gocache"
+    "github.com/bartventer/gocache/ramcache"
+)
+
+func main() {
+    ctx := context.Background()
+    c := ramcache.New(ctx, &cache.Config{}, ramcache.Options{DefaultTTL: 5 * time.Minute})
+    // ... use c with the cache.Cache interface
+}
+```
+
+## Limitations
+
+Please note that due to the limitations of the RAM Cache, pattern matching operations are not supported. This includes the `Count` and `DelKeys` methods, which will return a `ErrPatternMatchingNotSupported` error if called.
 
 ## Contributing
 
