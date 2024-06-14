@@ -3,7 +3,6 @@ package memcache
 import (
 	"context"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -11,13 +10,18 @@ import (
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/testutil"
 	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-const defaultAddr = "localhost:11211"
+// Defines the default Memcached network address.
+const (
+	defaultPort = "11211"
+	defaultAddr = "localhost:" + defaultPort
+)
 
 // malformedKey is a key that is too long which will trigger the [memcache.ErrMalformedKey] error.
 var malformedKey = strings.Repeat("a", 251)
@@ -25,16 +29,21 @@ var malformedKey = strings.Repeat("a", 251)
 // setupMemcached creates a new Memcached container.
 func setupMemcached(t *testing.T) *memcacheCache {
 	t.Helper()
-
 	// Create a new Memcached container
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
-		FromDockerfile: testcontainers.FromDockerfile{
-			Context:    ".",
-			Dockerfile: filepath.Join("testdata", "Dockerfile"),
+		Image:        "memcached:alpine",
+		ExposedPorts: []string{defaultPort},
+		ConfigModifier: func(c *container.Config) {
+			c.Healthcheck = &container.HealthConfig{
+				Test:        []string{"CMD", "nc", "-vn", "-w", "1", "localhost", defaultPort},
+				Interval:    30 * time.Second,
+				Timeout:     10 * time.Second,
+				Retries:     3,
+				StartPeriod: 5 * time.Second,
+			}
 		},
-		ExposedPorts: []string{"11211"},
-		WaitingFor:   wait.ForLog("server is ready"),
+		WaitingFor: wait.ForHealthCheck(),
 	}
 	memcachedC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -48,15 +57,16 @@ func setupMemcached(t *testing.T) *memcacheCache {
 			t.Fatalf("Failed to terminate Memcached container: %v", cleanupErr)
 		}
 	})
-
-	// Get the Memcached container's host and port
+	// Get the Memcached container endpoint
 	endpoint, err := memcachedC.Endpoint(ctx, "")
 	if err != nil {
 		t.Fatalf("Failed to get Memcached container endpoint: %v", err)
 	}
-
 	// Create a new Memcached client
 	client := memcache.New(endpoint)
+	t.Cleanup(func() {
+		client.Close()
+	})
 	err = client.Ping()
 	if err != nil {
 		t.Fatalf("Failed to ping Memcached container: %v", err)
@@ -65,6 +75,7 @@ func setupMemcached(t *testing.T) *memcacheCache {
 }
 
 func TestMemcacheCache_OpenCacheURL(t *testing.T) {
+	t.Parallel()
 	m := &memcacheCache{}
 
 	u, err := url.Parse("memcache://" + defaultAddr)
@@ -76,6 +87,7 @@ func TestMemcacheCache_OpenCacheURL(t *testing.T) {
 }
 
 func TestMemcacheCache_New(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	config := cache.Config{}
 
@@ -85,6 +97,7 @@ func TestMemcacheCache_New(t *testing.T) {
 }
 
 func TestMemcacheCache_Exists(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -112,6 +125,7 @@ func TestMemcacheCache_Exists(t *testing.T) {
 }
 
 func TestMemcacheCache_Del(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -139,6 +153,7 @@ func TestMemcacheCache_Del(t *testing.T) {
 }
 
 func TestMemcacheCache_Clear(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -156,6 +171,7 @@ func TestMemcacheCache_Clear(t *testing.T) {
 }
 
 func TestMemcacheCache_Get(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -183,6 +199,7 @@ func TestMemcacheCache_Get(t *testing.T) {
 }
 
 func TestMemcacheCache_Set(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -204,6 +221,7 @@ func TestMemcacheCache_Set(t *testing.T) {
 }
 
 func TestMemcacheCache_SetWithExpiry(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -235,6 +253,7 @@ func TestMemcacheCache_SetWithExpiry(t *testing.T) {
 // Pattern matching operations not supported by Memcache
 
 func TestMemcacheCache_Count(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	_, err := c.Count(context.Background(), "*")
 	require.Error(t, err)
@@ -242,6 +261,7 @@ func TestMemcacheCache_Count(t *testing.T) {
 }
 
 func TestMemcacheCache_DelKeys(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 	err := c.DelKeys(context.Background(), "*")
 	require.Error(t, err)
@@ -249,6 +269,7 @@ func TestMemcacheCache_DelKeys(t *testing.T) {
 }
 
 func TestMemcacheCache_Ping(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 
 	err := c.Ping(context.Background())
@@ -256,6 +277,7 @@ func TestMemcacheCache_Ping(t *testing.T) {
 }
 
 func TestMemcacheCache_Close(t *testing.T) {
+	t.Parallel()
 	c := setupMemcached(t)
 
 	err := c.Close()

@@ -3,13 +3,13 @@ package redis
 import (
 	"context"
 	"net/url"
-	"path/filepath"
 	"testing"
 	"time"
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/testutil"
 	"github.com/bartventer/gocache/keymod"
+	"github.com/docker/docker/api/types/container"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,21 +17,30 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-const defaultAddr = "localhost:6380"
+// Defines the default Redis network address.
+const (
+	defaultPort = "6379"
+	defaultAddr = "localhost:" + defaultPort
+)
 
 // setupRedis creates a new Redis cache with a test container.
 func setupRedis(t *testing.T) *redisCache {
 	t.Helper()
-
 	// Create a new Redis container
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
-		FromDockerfile: testcontainers.FromDockerfile{
-			Context:    ".",
-			Dockerfile: filepath.Join("testdata", "Dockerfile"),
+		Image:        "redis:alpine",
+		ExposedPorts: []string{defaultPort},
+		ConfigModifier: func(c *container.Config) {
+			c.Healthcheck = &container.HealthConfig{
+				Test:        []string{"CMD", "redis-cli", "ping"},
+				Interval:    30 * time.Second,
+				Timeout:     10 * time.Second,
+				Retries:     3,
+				StartPeriod: 5 * time.Second,
+			}
 		},
-		ExposedPorts: []string{"6379"},
-		WaitingFor:   wait.ForLog("Ready to accept connections"),
+		WaitingFor: wait.ForHealthCheck(),
 	}
 	redisC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -45,29 +54,27 @@ func setupRedis(t *testing.T) *redisCache {
 			t.Fatalf("Failed to terminate Redis container: %v", cleanupErr)
 		}
 	})
-
-	// Get the Redis container's host and port
+	// Get the Redis container endpoint
 	endpoint, err := redisC.Endpoint(ctx, "")
 	if err != nil {
 		t.Fatalf("Failed to get Redis container endpoint: %v", err)
 	}
-
 	// Create a new Redis cache
 	client := redis.NewClient(&redis.Options{
 		Addr: endpoint,
+	})
+	t.Cleanup(func() {
+		client.Close()
 	})
 	err = client.Ping(context.Background()).Err()
 	if err != nil {
 		t.Fatalf("Failed to ping Redis container: %v", err)
 	}
-	c := &redisCache{client: client, config: &cache.Config{CountLimit: 100}}
-	t.Cleanup(func() {
-		client.Close()
-	})
-	return c
+	return &redisCache{client: client, config: &cache.Config{CountLimit: 100}}
 }
 
 func TestRedisCache_OpenCacheURL(t *testing.T) {
+	t.Parallel()
 	r := &redisCache{}
 
 	u, err := url.Parse("redis://" + defaultAddr + "?maxretries=5&minretrybackoff=1000ms")
@@ -79,6 +86,7 @@ func TestRedisCache_OpenCacheURL(t *testing.T) {
 }
 
 func TestRedisCache_New(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	config := cache.Config{}
 	options := redis.Options{
@@ -91,6 +99,7 @@ func TestRedisCache_New(t *testing.T) {
 }
 
 func TestRedisCache_Count(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
@@ -109,6 +118,7 @@ func TestRedisCache_Count(t *testing.T) {
 }
 
 func TestRedisCache_Exists(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 	key := testutil.UniqueKey(t)
 	value := "testValue"
@@ -126,6 +136,7 @@ func TestRedisCache_Exists(t *testing.T) {
 }
 
 func TestRedisCache_Del(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
@@ -149,6 +160,7 @@ func TestRedisCache_Del(t *testing.T) {
 }
 
 func TestRedisCache_DelKeys(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	keys := []string{"testKey1", "testKey2", "testKey3"}
@@ -174,6 +186,7 @@ func TestRedisCache_DelKeys(t *testing.T) {
 }
 
 func TestRedisCache_Clear(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
@@ -192,6 +205,7 @@ func TestRedisCache_Clear(t *testing.T) {
 }
 
 func TestRedisCache_Get(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
@@ -215,6 +229,7 @@ func TestRedisCache_Get(t *testing.T) {
 }
 
 func TestRedisCache_Set(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
@@ -232,6 +247,7 @@ func TestRedisCache_Set(t *testing.T) {
 }
 
 func TestRedisCache_SetWithExpiry(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	key := testutil.UniqueKey(t)
@@ -257,6 +273,7 @@ func TestRedisCache_SetWithExpiry(t *testing.T) {
 }
 
 func TestRedisCache_Ping(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	err := c.Ping(context.Background())
@@ -264,6 +281,7 @@ func TestRedisCache_Ping(t *testing.T) {
 }
 
 func TestRedisCache_Close(t *testing.T) {
+	t.Parallel()
 	c := setupRedis(t)
 
 	err := c.Close()
