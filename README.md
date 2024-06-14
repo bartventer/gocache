@@ -13,7 +13,7 @@ The `Cache` package provides a unified interface for managing caches in Go. It a
 ## Installation
 
 ```bash
-go get -u github.com/bartventer/cache
+go get -u github.com/bartventer/gocache
 ```
 
 ## Supported Cache Implementations
@@ -153,7 +153,6 @@ import (
 
     "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/memcache"
-    "github.com/bradfitz/gomemcache/memcache"
 )
 
 func main() {
