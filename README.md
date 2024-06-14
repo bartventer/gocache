@@ -30,36 +30,136 @@ _Pull requests for additional cache implementations are welcome!_
 
 To use a cache implementation, import the relevant driver package and use the `OpenCache` function to create a new cache. The cache package will automatically use the correct cache implementation based on the URL scheme.
 
+### Redis
+
+The [redis](https://pkg.go.dev/github.com/bartventer/gocache/redis) package provides a [Redis](https://redis.io) cache implementation using the [go-redis/redis](https://github.com/go-redis/redis) client.
+
 ```go
 import (
     "context"
     "log"
 
     cache "github.com/bartventer/gocache"
-    // Enable the Redis cache implementation
     _ "github.com/bartventer/gocache/redis"
 )
 
 func main() {
     ctx := context.Background()
-    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000"
+    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000ms"
     c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
     }
+    // ... use c with the cache.Cache interface
+}
+```
 
-    // Now you can use c with the cache.Cache interface
-    err = c.Set(ctx, "key", "value")
+#### Redis Constructor
+
+```go
+import (
+    "context"
+    "log"
+
+    "github.com/bartventer/gocache"
+    "github.com/bartventer/gocache/redis"
+    "github.com/redis/go-redis/v9"
+)
+
+func main() {
+    ctx := context.Background()
+    c := redis.New(ctx, cache.Config{}, redis.Options{
+        Addr: "localhost:7000",
+    })
+    // ... use c with the cache.Cache interface
+}
+```
+
+### Redis Cluster
+
+The [rediscluster](https://pkg.go.dev/github.com/bartventer/gocache/rediscluster) package provides a [Redis Cluster](https://redis.io/topics/cluster-spec) cache implementation using the [go-redis/redis](https://github.com/go-redis/redis) client.
+
+```go
+import (
+    "context"
+    "log"
+
+    cache "github.com/bartventer/gocache"
+    _ "github.com/bartventer/gocache/rediscluster"
+)
+
+func main() {
+    ctx := context.Background()
+    urlStr := "rediscluster://localhost:7000,localhost:7001,localhost:7002?maxretries=5&minretrybackoff=1000"
+    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
     if err != nil {
-        log.Fatalf("Failed to set key: %v", err)
+        log.Fatalf("Failed to initialize cache: %v", err)
     }
+    // ... use c with the cache.Cache interface
+}
+```
 
-    value, err := c.Get(ctx, "key")
+#### Redis Cluster Constructor
+
+```go
+import (
+    "context"
+    "log"
+
+    "github.com/bartventer/gocache"
+    "github.com/bartventer/gocache/rediscluster"
+    "github.com/redis/go-redis/v9"
+)
+
+func main() {
+    ctx := context.Background()
+    c := rediscluster.New(ctx, cache.Config{}, redis.ClusterOptions{
+        Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
+    })
+    // ... use c with the cache.Cache interface
+}
+```
+
+### Memcache
+
+The [memcache](https://pkg.go.dev/github.com/bartventer/gocache/memcache) package provides a [Memcache](https://memcached.org) cache implementation using the [bradfitz/gomemcache](https://github.com/bradfitz/gomemcache) client.
+
+```go
+import (
+    "context"
+    "log"
+
+    cache "github.com/bartventer/gocache"
+    _ "github.com/bartventer/gocache/memcache"
+)
+
+func main() {
+    ctx := context.Background()
+    urlStr := "memcache://localhost:11211"
+    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
     if err != nil {
-        log.Fatalf("Failed to get key: %v", err)
+        log.Fatalf("Failed to initialize cache: %v", err)
     }
+    // ... use c with the cache.Cache interface
+}
+```
 
-    log.Printf("Value: %s", value)
+#### Memcache Constructor
+
+```go
+import (
+    "context"
+    "log"
+
+    "github.com/bartventer/gocache"
+    "github.com/bartventer/gocache/memcache"
+    "github.com/bradfitz/gomemcache/memcache"
+)
+
+func main() {
+    ctx := context.Background()
+    c := memcache.New(ctx, cache.Config{}, "localhost:11211")
+    // ... use c with the cache.Cache interface
 }
 ```
 
