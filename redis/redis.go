@@ -1,5 +1,5 @@
 /*
-Package redis provides a Redis Client implementation of the cache.Cache interface.
+Package redis provides a Redis Client implementation of the [cache.Cache] interface.
 It uses the go-redis library to interact with a Redis Client.
 
 # URL Format:
@@ -102,8 +102,7 @@ func New(ctx context.Context, config *cache.Config, options redis.Options) *redi
 // Ensure RedisCache implements the cache.Cache interface.
 var _ cache.Cache = &redisCache{}
 
-// OpenCacheURL opens a new Redis cache using the given URL and options.
-// It implements the cache.CacheURLOpener interface.
+// OpenCacheURL implements cache.URLOpener.
 func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
 	// Parse the URL into Redis options
 	clusterOpts, err := optionsFromURL(u, options.Metadata)
@@ -119,8 +118,6 @@ func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cach
 	return r, nil
 }
 
-// init initializes the Redis client with the given options.
-// It implements the cache.Cache interface.
 func (r *redisCache) init(_ context.Context, config *cache.Config, options redis.Options) {
 	r.once.Do(func() {
 		r.config = config
@@ -152,8 +149,7 @@ func (r *redisCache) Exists(ctx context.Context, key string, modifiers ...keymod
 	return n > 0, nil
 }
 
-// Del deletes a key from the cache.
-// It implements the cache.Cache interface.
+// Del implements cache.Cache.
 func (r *redisCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	delCount, err := r.client.Del(ctx, key).Result()
@@ -166,8 +162,7 @@ func (r *redisCache) Del(ctx context.Context, key string, modifiers ...keymod.Ke
 	return nil
 }
 
-// DelKeys deletes all keys matching a pattern from the cache.
-// It implements the cache.Cache interface.
+// DelKeys implements cache.Cache.
 func (r *redisCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
 	pattern = keymod.ModifyKey(pattern, modifiers...)
 	iter := r.client.Scan(ctx, 0, pattern, r.config.CountLimit).Iterator()
@@ -187,14 +182,12 @@ func (r *redisCache) DelKeys(ctx context.Context, pattern string, modifiers ...k
 	return nil
 }
 
-// Clear deletes all keys from the cache.
-// It implements the cache.Cache interface.
+// Clear implements cache.Cache.
 func (r *redisCache) Clear(ctx context.Context) error {
 	return r.client.FlushDB(ctx).Err()
 }
 
-// Get gets the value of a key from the cache.
-// It implements the cache.Cache interface.
+// Get implements cache.Cache.
 func (r *redisCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
 	key = keymod.ModifyKey(key, modifiers...)
 	val, err := r.client.Get(ctx, key).Bytes()
@@ -208,15 +201,13 @@ func (r *redisCache) Get(ctx context.Context, key string, modifiers ...keymod.Ke
 	return val, nil
 }
 
-// Set sets a key to a value in the cache.
-// It implements the cache.Cache interface.
+// Set implements cache.Cache.
 func (r *redisCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	return r.client.Set(ctx, key, value, 0).Err()
 }
 
-// SetWithExpiry sets a key to a value in the cache with an expiry time.
-// It implements the cache.Cache interface.
+// SetWithExpiry implements cache.Cache.
 func (r *redisCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	return r.client.Set(ctx, key, value, expiry).Err()

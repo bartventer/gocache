@@ -1,5 +1,5 @@
 /*
-Package memcache provides a Memcache Client implementation of the cache.Cache interface.
+Package memcache provides a Memcache Client implementation of the [cache.Cache] interface.
 It uses the memcache library to interact with a Memcache Client.
 
 # URL Format:
@@ -54,7 +54,7 @@ Example via [memcache.New] constructor:
 # Limitations
 
 Please note that due to the limitations of the Memcache protocol, pattern matching
-operations are not supported. This includes the [Count] and [DelKeys] methods, which will return an
+operations are not supported. This includes the [cache.Cache] Count and DelKeys methods, which will return a
 [cache.ErrPatternMatchingNotSupported] error if called.
 */
 package memcache
@@ -98,16 +98,13 @@ func New(ctx context.Context, config *cache.Config, server ...string) *memcacheC
 // Ensure MemcacheCache implements the cache.Cache interface.
 var _ cache.Cache = &memcacheCache{}
 
-// OpenCacheURL opens a new Memcache cache using the given URL and options.
-// It implements the cache.CacheURLOpener interface.
+// OpenCacheURL implements cache.URLOpener.
 func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
 	addrs := strings.Split(u.Host, ",")
 	m.init(ctx, &options.Config, addrs...)
 	return m, nil
 }
 
-// init initializes the Memcache client with the given options.
-// It implements the cache.Cache interface.
 func (m *memcacheCache) init(_ context.Context, config *cache.Config, server ...string) {
 	m.once.Do(func() {
 		m.config = config
@@ -134,8 +131,7 @@ func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymo
 	return true, nil
 }
 
-// Del deletes a key from the cache.
-// It implements the cache.Cache interface.
+// Del implements cache.Cache.
 func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	err := m.client.Delete(key)
@@ -149,20 +145,17 @@ func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.K
 	return nil
 }
 
-// DelKeys deletes all keys matching a pattern from the cache.
-// It implements the cache.Cache interface.
+// DelKeys implements cache.Cache.
 func (m *memcacheCache) DelKeys(_ context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
 	return gcerrors.NewWithScheme(Scheme, fmt.Errorf("DelKeys not supported: %w", cache.ErrPatternMatchingNotSupported))
 }
 
-// Clear deletes all keys from the cache.
-// It implements the cache.Cache interface.
+// Clear implements cache.Cache.
 func (m *memcacheCache) Clear(_ context.Context) error {
 	return m.client.DeleteAll()
 }
 
-// Get gets the value of a key from the cache.
-// It implements the cache.Cache interface.
+// Get implements cache.Cache.
 func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
 	key = keymod.ModifyKey(key, modifiers...)
 	item, err := m.client.Get(key)
@@ -176,8 +169,7 @@ func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.K
 	return item.Value, nil
 }
 
-// Set sets a key to a value in the cache.
-// It implements the cache.Cache interface.
+// Set implements cache.Cache.
 func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	item := &memcache.Item{
@@ -191,8 +183,7 @@ func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, mo
 	return nil
 }
 
-// SetWithExpiry sets a key to a value in the cache with an expiry time.
-// It implements the cache.Cache interface.
+// SetWithExpiry implements cache.Cache.
 func (m *memcacheCache) SetWithExpiry(_ context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	item := &memcache.Item{

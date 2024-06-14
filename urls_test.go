@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-type mockCacheURLOpener struct{}
+type mockURLOpener struct{}
 
-func (m *mockCacheURLOpener) OpenCacheURL(ctx context.Context, u *url.URL, options *Options) (Cache, error) {
+func (m *mockURLOpener) OpenCacheURL(ctx context.Context, u *url.URL, options *Options) (Cache, error) {
 	if u.Scheme == "err" {
 		return nil, errors.New("forced error")
 	}
@@ -20,7 +20,7 @@ func TestCache(t *testing.T) {
 	ctx := context.Background()
 	mux := new(urlMux)
 
-	fake := &mockCacheURLOpener{}
+	fake := &mockURLOpener{}
 	mux.RegisterCache("foo", fake)
 	mux.RegisterCache("err", fake)
 

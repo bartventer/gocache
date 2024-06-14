@@ -103,6 +103,7 @@ func New(ctx context.Context, config *cache.Config, options redis.ClusterOptions
 // Ensure RedisClusterCache implements the cache.Cache interface.
 var _ cache.Cache = &redisClusterCache{}
 
+// OptionsFromURL implements cache.URLOpener.
 func (r *redisClusterCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
 	// Parse the URL into Redis Cluster options
 	clusterOpts, err := optionsFromURL(u, options.Metadata)
@@ -118,8 +119,6 @@ func (r *redisClusterCache) OpenCacheURL(ctx context.Context, u *url.URL, option
 	return r, nil
 }
 
-// init initializes the Redis Cluster client with the given options.
-// It implements the cache.Cache interface.
 func (r *redisClusterCache) init(_ context.Context, config *cache.Config, options redis.ClusterOptions) {
 	r.once.Do(func() {
 		r.config = config
@@ -159,8 +158,7 @@ func (r *redisClusterCache) Exists(ctx context.Context, key string, modifiers ..
 	return n > 0, nil
 }
 
-// Del deletes a key from the cache.
-// It implements the cache.Cache interface.
+// Del implements cache.Cache.
 func (r *redisClusterCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	delCount, err := r.client.Del(ctx, key).Result()
@@ -173,8 +171,7 @@ func (r *redisClusterCache) Del(ctx context.Context, key string, modifiers ...ke
 	return nil
 }
 
-// DelKeys deletes all keys matching a pattern from the cache.
-// It implements the cache.Cache interface.
+// DelKeys implements cache.Cache.
 func (r *redisClusterCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
 	pattern = keymod.ModifyKey(pattern, modifiers...)
 	return r.client.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
@@ -196,14 +193,12 @@ func (r *redisClusterCache) DelKeys(ctx context.Context, pattern string, modifie
 	})
 }
 
-// Clear deletes all keys from the cache.
-// It implements the cache.Cache interface.
+// Clear implements cache.Cache.
 func (r *redisClusterCache) Clear(ctx context.Context) error {
 	return r.client.FlushAll(ctx).Err()
 }
 
-// Get gets the value of a key from the cache.
-// It implements the cache.Cache interface.
+// Get implements cache.Cache.
 func (r *redisClusterCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
 	key = keymod.ModifyKey(key, modifiers...)
 	val, err := r.client.Get(ctx, key).Bytes()
@@ -217,15 +212,13 @@ func (r *redisClusterCache) Get(ctx context.Context, key string, modifiers ...ke
 	return val, nil
 }
 
-// Set sets a key to a value in the cache.
-// It implements the cache.Cache interface.
+// Set implements cache.Cache.
 func (r *redisClusterCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	return r.client.Set(ctx, key, value, 0).Err()
 }
 
-// SetWithExpiry sets a key to a value in the cache with an expiry time.
-// It implements the cache.Cache interface.
+// SetWithExpiry implements cache.Cache.
 func (r *redisClusterCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
 	return r.client.Set(ctx, key, value, expiry).Err()
