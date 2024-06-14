@@ -33,6 +33,7 @@ func setupRedisClusterCache(t *testing.T) *redisClusterCache {
 	// Create a new Redis cluster container
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
+		// Switch to latest once this issue is resolved: https://github.com/Grokzen/docker-redis-cluster/issues/162
 		Image:        "grokzen/redis-cluster:7.0.10",
 		ExposedPorts: exposedPorts,
 		ConfigModifier: func(c *container.Config) {
