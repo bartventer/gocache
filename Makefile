@@ -2,10 +2,11 @@
 SHELL = /bin/bash
 .PHONY: test lint
 
-COVERPROFILE ?= coverage.out
-
 test:
-	go test -v -race -coverprofile=$(COVERPROFILE) -covermode=atomic -timeout 15m $(shell go list ./...)
+	./scripts/test.sh
+
+update:
+	./scripts/update.sh
 
 lint:
 	golangci-lint run ./... --timeout 5m --fix --verbose
