@@ -35,5 +35,5 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  yarn global add semantic-release@17
+                  yarn global add semantic-release@17 @semantic-release/git
                   semantic-release
