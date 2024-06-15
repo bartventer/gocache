@@ -20,16 +20,17 @@ jobs:
             fail-fast: false
             matrix:
                 include:
+                    # The various directories in the monorepo with their respective tag formats
                     - directory: '.'
-                      tagFormat: 'v${version}'
+                      tag-format: ${{'v${version}'}}
                     - directory: 'redis'
-                      tagFormat: 'redis/v${version}'
+                      tag-format: ${{'redis/v${version}'}}
                     - directory: 'rediscluster'
-                      tagFormat: 'rediscluster/v${version}'
+                      tag-format: ${{'rediscluster/v${version}'}}
                     - directory: 'ramcache'
-                      tagFormat: 'ramcache/v${version}'
+                      tag-format: ${{'ramcache/v${version}'}}
                     - directory: 'memcache'
-                      tagFormat: 'memcache/v${version}'
+                      tag-format: ${{'memcache/v${version}'}}
         permissions:
             contents: write
             issues: write
@@ -45,4 +46,4 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   yarn global add semantic-release@17
-                  semantic-release --tagFormat ${{ matrix.tagFormat }}
+                  semantic-release --tag-format ${{ matrix.tag-format }}
