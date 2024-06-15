@@ -3,7 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/bartventer/gocache.svg)](https://pkg.go.dev/github.com/bartventer/gocache)
 [![Release](https://img.shields.io/github/release/bartventer/gocache.svg)](https://github.com/bartventer/gocache/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bartventer/gocache)](https://goreportcard.com/report/github.com/bartventer/gocache)
-[![Coverage Status](https://coveralls.io/repos/github/bartventer/gocache/badge.svg?branch=master)](https://coveralls.io/github/bartventer/gocache?branch=master)
+[![codecov](https://codecov.io/gh/bartventer/gocache/graph/badge.svg?token=rtp2vxaccX)](https://codecov.io/gh/bartventer/gocache)
 [![Test](https://github.com/bartventer/gocache/actions/workflows/default.yml/badge.svg)](https://github.com/bartventer/gocache/actions/workflows/default.yml)
 ![GitHub issues](https://img.shields.io/github/issues/bartventer/gocache)
 [![License](https://img.shields.io/github/license/bartventer/gocache.svg)](LICENSE)
