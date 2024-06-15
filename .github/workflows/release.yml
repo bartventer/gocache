@@ -19,18 +19,17 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    # The various directories in the monorepo with their respective tag formats
-                    - directory: '.'
-                      tag-format: ${{'v${version}'}}
-                    - directory: 'redis'
-                      tag-format: ${{'redis/v${version}'}}
-                    - directory: 'rediscluster'
-                      tag-format: ${{'rediscluster/v${version}'}}
-                    - directory: 'ramcache'
-                      tag-format: ${{'ramcache/v${version}'}}
-                    - directory: 'memcache'
-                      tag-format: ${{'memcache/v${version}'}}
+              include:
+                - directory: '.'
+                  tag-format: ${{ format('v{{0}}', 'version') }}
+                - directory: 'redis'
+                  tag-format: ${{ format('redis/v{{0}}', 'version') }}
+                - directory: 'rediscluster'
+                  tag-format: ${{ format('rediscluster/v{{0}}', 'version') }}
+                - directory: 'ramcache'
+                  tag-format: ${{ format('ramcache/v{{0}}', 'version') }}
+                - directory: 'memcache'
+                  tag-format: ${{ format('memcache/v{{0}}', 'version') }}
         permissions:
             contents: write
             issues: write
