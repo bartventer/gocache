@@ -33,20 +33,3 @@ jobs:
               uses: shogo82148/actions-goveralls@v1
               with:
                   path-to-profile: ${{ env.COVERPROFILE }}
-
-    semantic-release:
-        name: Semantic Release
-        runs-on: ubuntu-latest
-        needs: [test]
-        if: github.event_name == 'push'
-        permissions:
-            contents: write
-            issues: write
-        steps:
-            - uses: actions/checkout@v4
-            - name: Run semantic-release
-              run: |
-                  yarn global add semantic-release@17
-                  semantic-release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
