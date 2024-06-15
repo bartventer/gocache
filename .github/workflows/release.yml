@@ -30,9 +30,6 @@ jobs:
             issues: write
         steps:
             - uses: actions/checkout@v4
-              with:
-                  sparse-checkout: |
-                        ${{ matrix.directory }}
             - name: 'Run semantic-release in "${{ matrix.directory }}"'
               working-directory: ${{ matrix.directory }}
               env:

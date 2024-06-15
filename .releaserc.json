@@ -9,12 +9,7 @@
         }
     ],
     "plugins": [
-        [
-            "@semantic-release/exec",
-            {
-                "analyzeCommitsCmd": "./scripts/analyze-commits.sh ${commits} ${cwd}"
-            }
-        ],
+        "@semantic-release/commit-analyzer",
         "@semantic-release/release-notes-generator",
         "@semantic-release/github"
     ]
