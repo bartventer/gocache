@@ -4,8 +4,12 @@ go 1.22.4
 
 replace github.com/bartventer/gocache => ../
 
+// TODO remove once https://github.com/testcontainers/testcontainers-go is updated from v0.31.0
+// https://github.com/testcontainers/testcontainers-go/issues/2583
+replace github.com/docker/docker => github.com/docker/docker v26.1.4+incompatible
+
 require (
-	github.com/bartventer/gocache v0.0.0-00010101000000-000000000000
+	github.com/bartventer/gocache v1.4.1
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
 	github.com/docker/docker v27.0.0+incompatible
 	github.com/stretchr/testify v1.9.0
