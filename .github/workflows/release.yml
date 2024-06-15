@@ -21,15 +21,15 @@ jobs:
             matrix:
               include:
                 - directory: '.'
-                  tag-format: ${{ format('v{{0}}', 'version') }}
+                  tag-format: ${{ format('v${{{0}}}', 'version') }}
                 - directory: 'redis'
-                  tag-format: ${{ format('redis/v{{0}}', 'version') }}
+                  tag-format: ${{ format('redis/v${{{0}}}', 'version') }}
                 - directory: 'rediscluster'
-                  tag-format: ${{ format('rediscluster/v{{0}}', 'version') }}
+                  tag-format: ${{ format('rediscluster/v${{{0}}}', 'version') }}
                 - directory: 'ramcache'
-                  tag-format: ${{ format('ramcache/v{{0}}', 'version') }}
+                  tag-format: ${{ format('ramcache/v${{{0}}}', 'version') }}
                 - directory: 'memcache'
-                  tag-format: ${{ format('memcache/v{{0}}', 'version') }}
+                  tag-format: ${{ format('memcache/v${{{0}}}', 'version') }}
         permissions:
             contents: write
             issues: write
