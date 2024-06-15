@@ -16,7 +16,7 @@ jobs:
 
         runs-on: ${{ matrix.os }}
         env:
-            COVERPROFILE: ./cover.out
+            COVERPROFILE: ${{ github.workspace }}/cover.out
         steps:
             - uses: actions/checkout@v4
             - name: Set up Go
