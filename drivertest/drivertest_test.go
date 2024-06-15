@@ -11,93 +11,144 @@ import (
 	"github.com/bartventer/gocache/keymod"
 )
 
+// Item is a cache Item.
+type Item struct {
+	Value  []byte    // Value is the item value.
+	Expiry time.Time // Expiry is the item expiry time. Default is 24 hours.
+}
+
+// MockCache is an in-memory implementation of the cache.Cache interface.
 type MockCache struct {
-	data map[string]interface{}
-	mu   sync.RWMutex
+	once   sync.Once       // once ensures that the cache is initialized only once.
+	mu     sync.RWMutex    // mu guards the store.
+	store  map[string]Item // store is the in-memory store.
+	config *cache.Config   // config is the cache configuration.
+	opts   *Options        // options is the cache options.
 }
 
-func NewMockCache() *MockCache {
-	return &MockCache{
-		data: make(map[string]interface{}),
-	}
+func (r *MockCache) init(_ context.Context, config *cache.Config, options Options) {
+	r.once.Do(func() {
+		r.config = config
+		r.store = make(map[string]Item)
+		r.opts = &options
+	})
 }
 
-func (m *MockCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.data[key] = value
-	return nil
-}
+// Ensure MockCache implements the cache.Cache interface.
+var _ cache.Cache = &MockCache{}
 
-func (m *MockCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.data[key] = value
-	go func() {
-		<-time.After(expiry)
-		m.mu.Lock()
-		delete(m.data, key)
-		m.mu.Unlock()
-	}()
-	return nil
-}
-
-func (m *MockCache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	_, ok := m.data[key]
-	return ok, nil
-}
-
-func (m *MockCache) Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
+// Count implements cache.Cache.
+func (r *MockCache) Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
 	return 0, cache.ErrPatternMatchingNotSupported
 }
 
-func (m *MockCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	value, ok := m.data[key]
-	if !ok {
-		return nil, cache.ErrKeyNotFound
+// Exists implements cache.Cache.
+func (r *MockCache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
+	key = keymod.ModifyKey(key, modifiers...)
+	r.mu.RLock()
+	item, exists := r.store[key]
+	r.mu.RUnlock()
+	if exists && time.Now().After(item.Expiry) {
+		r.mu.Lock()
+		delete(r.store, key)
+		r.mu.Unlock()
+		exists = false
 	}
-	switch v := value.(type) {
-	case []byte:
-		return v, nil
-	case string:
-		return []byte(v), nil
-	default:
-		return nil, fmt.Errorf("unsupported value type: %T", v)
-	}
+	return exists, nil
 }
 
-func (m *MockCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	_, ok := m.data[key]
-	if !ok {
+// Del implements cache.Cache.
+func (r *MockCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.store[key]; !exists {
 		return cache.ErrKeyNotFound
 	}
-	delete(m.data, key)
+	delete(r.store, key)
 	return nil
 }
 
-func (m *MockCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
+// DelKeys implements cache.Cache.
+func (r *MockCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
 	return cache.ErrPatternMatchingNotSupported
 }
 
-func (m *MockCache) Clear(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.data = make(map[string]interface{})
+// Clear implements cache.Cache.
+func (r *MockCache) Clear(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.store = make(map[string]Item)
 	return nil
 }
 
-func (m *MockCache) Ping(ctx context.Context) error {
+// Get implements cache.Cache.
+func (r *MockCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
+	key = keymod.ModifyKey(key, modifiers...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	it, exists := r.store[key]
+	if !exists || time.Now().After(it.Expiry) {
+		delete(r.store, key)
+		return nil, cache.ErrKeyNotFound
+	}
+	return it.Value, nil
+}
+
+// Set implements cache.Cache.
+func (r *MockCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch v := value.(type) {
+	case string:
+		r.store[key] = Item{Value: []byte(v), Expiry: time.Now().Add(1 * time.Hour)}
+	case []byte:
+		r.store[key] = Item{Value: v, Expiry: time.Now().Add(1 * time.Hour)}
+	default:
+		return fmt.Errorf("unsupported value type: %T", v)
+	}
 	return nil
 }
 
-func (m *MockCache) Close() error {
+// SetWithExpiry implements cache.Cache.
+func (r *MockCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
+	key = keymod.ModifyKey(key, modifiers...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch v := value.(type) {
+	case string:
+		r.store[key] = Item{Value: []byte(v), Expiry: time.Now().Add(expiry)}
+	case []byte:
+		r.store[key] = Item{Value: v, Expiry: time.Now().Add(expiry)}
+	default:
+		return fmt.Errorf("unsupported value type: %T", v)
+	}
 	return nil
+}
+
+// Close implements cache.Cache.
+func (r *MockCache) Close() error {
+	return nil
+}
+
+// Ping implements cache.Cache.
+func (r *MockCache) Ping(ctx context.Context) error {
+	return nil
+}
+
+// NewMockCache returns a new MockCache.
+func NewMockCache() *MockCache {
+	return &MockCache{
+		store: make(map[string]Item),
+		config: &cache.Config{
+			CountLimit: 1000,
+		},
+		opts: &Options{
+			PatternMatchingDisabled: true,
+			CloseIsNoop:             true,
+		},
+	}
 }
 
 type MockHarness struct{}
