@@ -9,8 +9,9 @@ mkdir -p "$COVERDIR"
 gomods=$(find . -name go.mod)
 
 for file in $gomods; do
-    printf '=%.0s' {1..80}
-    printf "\n===> Testing %s\n" "$file"
+    printf '\n\n%s\n' "$(printf '=%.0s' {1..80})"
+    printf "🐛 Testing module at path: %s\n" "$file"
+    printf '%s\n' "$(printf '=%.0s' {1..80})"
     dir=$(dirname "$file")
     if [[ "$(basename "$dir")" == "." ]]; then
         coverfile="$COVERDIR/root.cover"
