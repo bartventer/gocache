@@ -1,7 +1,12 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
-    directory: "/"
+    directories:
+      - "/"
+      - "/memcache"
+      - "/redis"
+      - "/rediscluster"
+      - "/ramcache"
     reviewers:
       - "bartventer"
     assignees:
