@@ -19,17 +19,12 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-              include:
-                - directory: '.'
-                  tag-format: ${{ format('v${{{0}}}', 'version') }}
-                - directory: 'redis'
-                  tag-format: ${{ format('redis/v${{{0}}}', 'version') }}
-                - directory: 'rediscluster'
-                  tag-format: ${{ format('rediscluster/v${{{0}}}', 'version') }}
-                - directory: 'ramcache'
-                  tag-format: ${{ format('ramcache/v${{{0}}}', 'version') }}
-                - directory: 'memcache'
-                  tag-format: ${{ format('memcache/v${{{0}}}', 'version') }}
+                directory:
+                    - '.'
+                    - 'redis'
+                    - 'rediscluster'
+                    - 'ramcache'
+                    - 'memcache'
         permissions:
             contents: write
             issues: write
@@ -45,4 +40,4 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   yarn global add semantic-release@17
-                  semantic-release --tag-format ${{ matrix.tag-format }}
+                  semantic-release
