@@ -148,10 +148,10 @@ func (r *ramcache) cleanupExpiredItems() {
 
 // removeExpiredItems removes expired items from the store.
 func (r *ramcache) removeExpiredItems() {
-	items := r.store.GetItemsSortedByExpiry()
-	for _, item := range items {
-		if item.Item.IsExpired() {
-			r.store.Delete(item.Key)
+	keyItems := r.store.KeyItemsSortedByExpiry()
+	for _, ki := range keyItems {
+		if ki.Item.IsExpired() {
+			r.store.Delete(ki.Key)
 		} else {
 			// Items are sorted by expiry time, so we can break early
 			break

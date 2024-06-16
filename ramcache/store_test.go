@@ -46,13 +46,13 @@ func TestStore(t *testing.T) {
 		}
 	})
 
-	t.Run("GetItemsSortedByExpiry", func(t *testing.T) {
+	t.Run("KeyItemsSortedByExpiry", func(t *testing.T) {
 		s := newStore()
 		s.Set("key1", Item{Value: []byte("value1"), Expiry: time.Now().Add(20 * time.Minute)})
 		s.Set("key2", Item{Value: []byte("value2"), Expiry: time.Now().Add(10 * time.Minute)})
-		items := s.GetItemsSortedByExpiry()
+		items := s.KeyItemsSortedByExpiry()
 		if len(items) != 2 || items[0].Key != "key2" || items[1].Key != "key1" {
-			t.Errorf("GetItemsSortedByExpiry failed. Expected [key2, key1], got [%v, %v]", items[0].Key, items[1].Key)
+			t.Errorf("KeyItemsSortedByExpiry failed. Expected [key2, key1], got [%v, %v]", items[0].Key, items[1].Key)
 		}
 	})
 }

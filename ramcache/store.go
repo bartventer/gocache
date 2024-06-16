@@ -61,8 +61,8 @@ type keyItem struct {
 	Item Item   // Item is the item.
 }
 
-// GetItemsSortedByExpiry returns all items sorted by expiry time (closest to expiry first).
-func (s *store) GetItemsSortedByExpiry() []keyItem {
+// KeyItemsSortedByExpiry returns all key items sorted by expiry time (closest to expiry first).
+func (s *store) KeyItemsSortedByExpiry() []keyItem {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	items := make([]keyItem, 0, len(s.items))
