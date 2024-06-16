@@ -3,11 +3,11 @@ package drivertest
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	cache "github.com/bartventer/gocache"
-	"github.com/bartventer/gocache/internal/testutil"
 	"github.com/bartventer/gocache/keymod"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,10 +78,16 @@ func withCache(t *testing.T, newHarness HarnessMaker, f func(*testing.T, cache.C
 	f(t, c, h.Options())
 }
 
+// uniqueKey returns a unique key for the test.
+func uniqueKey(t *testing.T) string {
+	t.Helper()
+	return fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano())
+}
+
 // testSet tests the Set method of the cache.
 func testSet(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
-	key := testutil.UniqueKey(t)
+	key := uniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -98,7 +104,7 @@ func testSet(t *testing.T, c cache.Cache, opts Options) {
 // testSetWithExpiry tests the SetWithExpiry method of the cache.
 func testSetWithExpiry(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
-	key := testutil.UniqueKey(t)
+	key := uniqueKey(t)
 	value := "testValue"
 	expiry := 1 * time.Second
 
@@ -123,7 +129,7 @@ func testSetWithExpiry(t *testing.T, c cache.Cache, opts Options) {
 // testExists tests the Exists method of the cache.
 func testExists(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
-	key := testutil.UniqueKey(t)
+	key := uniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -140,7 +146,7 @@ func testExists(t *testing.T, c cache.Cache, opts Options) {
 // testCount tests the Count method of the cache.
 func testCount(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
-	key := testutil.UniqueKey(t)
+	key := uniqueKey(t)
 	value := "testValue"
 
 	if opts.PatternMatchingDisabled {
@@ -164,7 +170,7 @@ func testCount(t *testing.T, c cache.Cache, opts Options) {
 // testGet tests the Get method of the cache.
 func testGet(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
-	key := testutil.UniqueKey(t)
+	key := uniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -181,7 +187,7 @@ func testGet(t *testing.T, c cache.Cache, opts Options) {
 // testDel tests the Del method of the cache.
 func testDel(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
-	key := testutil.UniqueKey(t)
+	key := uniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -204,7 +210,7 @@ func testDel(t *testing.T, c cache.Cache, opts Options) {
 func testDelKeys(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
 	keys := []string{"testKey1", "testKey2", "testKey3", "testKey4", "testKey5"}
-	hashTag := testutil.UniqueKey(t)
+	hashTag := uniqueKey(t)
 
 	if opts.PatternMatchingDisabled {
 		err := c.DelKeys(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
@@ -241,7 +247,7 @@ func testDelKeys(t *testing.T, c cache.Cache, opts Options) {
 func testClear(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
 
-	key := testutil.UniqueKey(t)
+	key := uniqueKey(t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
