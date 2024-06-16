@@ -112,7 +112,6 @@ type ramcache struct {
 
 // OpenCacheURL implements cache.URLOpener.
 func (r *ramcache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
-	// Parse the URL into Redis options
 	ramOpts, err := optionsFromURL(u, options.Metadata)
 	if err != nil {
 		return nil, err

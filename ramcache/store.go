@@ -39,20 +39,20 @@ func (s *store) Get(key string) (Item, bool) {
 
 func (s *store) Set(key string, item Item) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.items[key] = item
+	s.mu.Unlock()
 }
 
 func (s *store) Delete(key string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	delete(s.items, key)
+	s.mu.Unlock()
 }
 
 func (s *store) Clear() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.items = make(map[string]Item)
+	s.mu.Unlock()
 }
 
 // keyItem is a struct that contains a key and an item.
