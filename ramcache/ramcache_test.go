@@ -40,14 +40,14 @@ func Test_ramcache_removeExpiredItems(t *testing.T) {
 
 	// Add an expired item
 	expiredKey := "expired"
-	r.store.Set(expiredKey, Item{
+	r.store.Set(expiredKey, item{
 		Value:  []byte("expired"),
 		Expiry: time.Now().Add(-time.Hour), // 1 hour in the past
 	})
 
 	// Add a non-expired item
 	nonExpiredKey := "nonExpired"
-	r.store.Set(nonExpiredKey, Item{
+	r.store.Set(nonExpiredKey, item{
 		Value:  []byte("nonExpired"),
 		Expiry: time.Now().Add(time.Hour), // 1 hour in the future
 	})

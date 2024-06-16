@@ -17,3 +17,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+retract (
+	[v1.4.2, v1.6.0] // Accidentally published non-public API
+)

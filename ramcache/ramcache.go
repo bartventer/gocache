@@ -224,9 +224,9 @@ func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modif
 	key = keymod.ModifyKey(key, modifiers...)
 	switch v := value.(type) {
 	case string:
-		r.store.Set(key, Item{Value: []byte(v), Expiry: time.Now().Add(r.opts.DefaultTTL)})
+		r.store.Set(key, item{Value: []byte(v), Expiry: time.Now().Add(r.opts.DefaultTTL)})
 	case []byte:
-		r.store.Set(key, Item{Value: v, Expiry: time.Now().Add(r.opts.DefaultTTL)})
+		r.store.Set(key, item{Value: v, Expiry: time.Now().Add(r.opts.DefaultTTL)})
 	default:
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
 	}
@@ -238,9 +238,9 @@ func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interfac
 	key = keymod.ModifyKey(key, modifiers...)
 	switch v := value.(type) {
 	case string:
-		r.store.Set(key, Item{Value: []byte(v), Expiry: time.Now().Add(expiry)})
+		r.store.Set(key, item{Value: []byte(v), Expiry: time.Now().Add(expiry)})
 	case []byte:
-		r.store.Set(key, Item{Value: v, Expiry: time.Now().Add(expiry)})
+		r.store.Set(key, item{Value: v, Expiry: time.Now().Add(expiry)})
 	default:
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
 	}
