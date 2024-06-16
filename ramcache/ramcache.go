@@ -61,7 +61,6 @@ package ramcache
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -85,7 +84,11 @@ var _ cache.URLOpener = new(ramcache)
 // Options are the cache options.
 type Options struct {
 	// DefaultTTL is the default time-to-live for cache items.
+	// If not set, the default is 24 hours.
 	DefaultTTL time.Duration
+	// CleanupInterval is the interval at which checks for expired items are performed.
+	// If not set, the default is 5 minutes.
+	CleanupInterval time.Duration
 }
 
 // Revise revises the options, ensuring sensible defaults are set.
@@ -93,21 +96,18 @@ func (r *Options) Revise() {
 	if r.DefaultTTL <= 0 {
 		r.DefaultTTL = 24 * time.Hour
 	}
-}
-
-// Item is a cache Item.
-type Item struct {
-	Value  []byte    // Value is the item value.
-	Expiry time.Time // Expiry is the item expiry time. Default is 24 hours.
+	if r.CleanupInterval <= 0 {
+		r.CleanupInterval = 5 * time.Minute
+	}
 }
 
 // ramcache is an in-memory implementation of the cache.Cache interface.
 type ramcache struct {
-	once   sync.Once       // once ensures that the cache is initialized only once.
-	mu     sync.RWMutex    // mu guards the store.
-	store  map[string]Item // store is the in-memory store.
-	config *cache.Config   // config is the cache configuration.
-	opts   *Options        // options is the cache options.
+	once   sync.Once     // once ensures that the cache is initialized only once.
+	store  *store        // store is the in-memory store.
+	config *cache.Config // config is the cache configuration.
+	opts   *Options      // options is the cache options.
+	stopCh chan struct{} // stopCh is the stop channel.
 }
 
 // OpenCacheURL implements cache.URLOpener.
@@ -124,10 +124,40 @@ func (r *ramcache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.
 func (r *ramcache) init(_ context.Context, config *cache.Config, options Options) {
 	r.once.Do(func() {
 		r.config = config
-		r.store = make(map[string]Item)
+		r.store = newStore()
 		options.Revise()
 		r.opts = &options
+		r.stopCh = make(chan struct{})
+		go r.cleanupExpiredItems()
 	})
+}
+
+// cleanupExpiredItems periodically removes expired items from the store.
+func (r *ramcache) cleanupExpiredItems() {
+	ticker := time.NewTicker(r.opts.CleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			r.removeExpiredItems()
+		case <-r.stopCh:
+			return
+		}
+	}
+}
+
+// removeExpiredItems removes expired items from the store.
+func (r *ramcache) removeExpiredItems() {
+	items := r.store.GetItemsSortedByExpiry()
+	for _, item := range items {
+		if item.Item.IsExpired() {
+			r.store.Delete(item.Key)
+		} else {
+			// Items are sorted by expiry time, so we can break early
+			break
+		}
+	}
 }
 
 // New returns a new in-memory cache implementation.
@@ -136,12 +166,6 @@ func New(ctx context.Context, config *cache.Config, options Options) *ramcache {
 	r := &ramcache{}
 	r.init(ctx, config, options)
 	return r
-}
-
-// OpenCacheURL opens a cache using a URL.
-func OpenCacheURL(ctx context.Context, url string) (cache.Cache, error) {
-	// Implement URL parsing and opening here.
-	return nil, errors.New("not implemented")
 }
 
 // Ensure ramcache implements the cache.Cache interface.
@@ -155,13 +179,9 @@ func (r *ramcache) Count(ctx context.Context, pattern string, modifiers ...keymo
 // Exists implements cache.Cache.
 func (r *ramcache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
 	key = keymod.ModifyKey(key, modifiers...)
-	r.mu.RLock()
-	item, exists := r.store[key]
-	r.mu.RUnlock()
-	if exists && time.Now().After(item.Expiry) {
-		r.mu.Lock()
-		delete(r.store, key)
-		r.mu.Unlock()
+	item, exists := r.store.Get(key)
+	if exists && item.IsExpired() {
+		r.store.Delete(key)
 		exists = false
 	}
 	return exists, nil
@@ -170,12 +190,11 @@ func (r *ramcache) Exists(ctx context.Context, key string, modifiers ...keymod.K
 // Del implements cache.Cache.
 func (r *ramcache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, exists := r.store[key]; !exists {
+	_, exists := r.store.Get(key)
+	if !exists {
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w", key, cache.ErrKeyNotFound))
 	}
-	delete(r.store, key)
+	r.store.Delete(key)
 	return nil
 }
 
@@ -186,35 +205,29 @@ func (r *ramcache) DelKeys(ctx context.Context, pattern string, modifiers ...key
 
 // Clear implements cache.Cache.
 func (r *ramcache) Clear(ctx context.Context) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.store = make(map[string]Item)
+	r.store.Clear()
 	return nil
 }
 
 // Get implements cache.Cache.
 func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
 	key = keymod.ModifyKey(key, modifiers...)
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	it, exists := r.store[key]
-	if !exists || time.Now().After(it.Expiry) {
-		delete(r.store, key)
+	item, exists := r.store.Get(key)
+	if !exists || item.IsExpired() {
+		r.store.Delete(key)
 		return nil, gcerrors.NewWithScheme(Scheme, cache.ErrKeyNotFound)
 	}
-	return it.Value, nil
+	return item.Value, nil
 }
 
 // Set implements cache.Cache.
 func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	switch v := value.(type) {
 	case string:
-		r.store[key] = Item{Value: []byte(v), Expiry: time.Now().Add(r.opts.DefaultTTL)}
+		r.store.Set(key, Item{Value: []byte(v), Expiry: time.Now().Add(r.opts.DefaultTTL)})
 	case []byte:
-		r.store[key] = Item{Value: v, Expiry: time.Now().Add(r.opts.DefaultTTL)}
+		r.store.Set(key, Item{Value: v, Expiry: time.Now().Add(r.opts.DefaultTTL)})
 	default:
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
 	}
@@ -224,13 +237,11 @@ func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modif
 // SetWithExpiry implements cache.Cache.
 func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
 	key = keymod.ModifyKey(key, modifiers...)
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	switch v := value.(type) {
 	case string:
-		r.store[key] = Item{Value: []byte(v), Expiry: time.Now().Add(expiry)}
+		r.store.Set(key, Item{Value: []byte(v), Expiry: time.Now().Add(expiry)})
 	case []byte:
-		r.store[key] = Item{Value: v, Expiry: time.Now().Add(expiry)}
+		r.store.Set(key, Item{Value: v, Expiry: time.Now().Add(expiry)})
 	default:
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
 	}
@@ -239,6 +250,7 @@ func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interfac
 
 // Close implements cache.Cache.
 func (r *ramcache) Close() error {
+	close(r.stopCh)
 	return nil
 }
 
