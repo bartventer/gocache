@@ -44,7 +44,7 @@ func (r *MockCache) Count(ctx context.Context, pattern string, modifiers ...keym
 
 // Exists implements cache.Cache.
 func (r *MockCache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+	key = keymod.Modify(key, modifiers...)
 	r.mu.RLock()
 	item, exists := r.store[key]
 	r.mu.RUnlock()
@@ -59,7 +59,7 @@ func (r *MockCache) Exists(ctx context.Context, key string, modifiers ...keymod.
 
 // Del implements cache.Cache.
 func (r *MockCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, exists := r.store[key]; !exists {
@@ -84,7 +84,7 @@ func (r *MockCache) Clear(ctx context.Context) error {
 
 // Get implements cache.Cache.
 func (r *MockCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	it, exists := r.store[key]
@@ -97,7 +97,7 @@ func (r *MockCache) Get(ctx context.Context, key string, modifiers ...keymod.Key
 
 // Set implements cache.Cache.
 func (r *MockCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch v := value.(type) {
@@ -113,7 +113,7 @@ func (r *MockCache) Set(ctx context.Context, key string, value interface{}, modi
 
 // SetWithExpiry implements cache.Cache.
 func (r *MockCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch v := value.(type) {

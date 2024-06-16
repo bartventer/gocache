@@ -213,33 +213,33 @@ func testDelKeys(t *testing.T, c cache.Cache, opts Options) {
 	hashTag := uniqueKey(t)
 
 	if opts.PatternMatchingDisabled {
-		err := c.DelKeys(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
+		err := c.DelKeys(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
 		return
 	}
 
 	for _, key := range keys {
-		if err := c.Set(context.Background(), key, "testValue", keymod.HashTagModifier(hashTag)); err != nil {
+		if err := c.Set(context.Background(), key, "testValue", keymod.WithHashTag(hashTag)); err != nil {
 			t.Fatalf("Failed to set key: %v", err)
 		}
 	}
 
-	count, err := c.Count(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
+	count, err := c.Count(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
 	require.NoError(t, err)
 	if !assert.Equal(t, int64(5), count) {
 		t.FailNow()
 	}
 
-	err = c.DelKeys(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
+	err = c.DelKeys(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
 	require.NoError(t, err)
 
-	res, err := c.Count(context.Background(), "testKey*", keymod.HashTagModifier(hashTag))
+	res, err := c.Count(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), res)
 
 	// Non-existent key
-	err = c.DelKeys(context.Background(), "nonExistentKey*", keymod.HashTagModifier(hashTag))
+	err = c.DelKeys(context.Background(), "nonExistentKey*", keymod.WithHashTag(hashTag))
 	require.NoError(t, err)
 }
 
