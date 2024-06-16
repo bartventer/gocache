@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"testing"
+	"time"
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/drivertest"
@@ -30,6 +31,39 @@ func TestRamcacheCache_New(t *testing.T) {
 	r := New(ctx, &config, Options{})
 	require.NotNil(t, r)
 	assert.NotNil(t, r.store)
+}
+
+func Test_ramcache_removeExpiredItems(t *testing.T) {
+	ctx := context.Background()
+	r := &ramcache{}
+	r.init(ctx, &cache.Config{}, Options{DefaultTTL: 24 * time.Hour, CleanupInterval: 5 * time.Minute})
+
+	// Add an expired item
+	expiredKey := "expired"
+	r.store.Set(expiredKey, Item{
+		Value:  []byte("expired"),
+		Expiry: time.Now().Add(-time.Hour), // 1 hour in the past
+	})
+
+	// Add a non-expired item
+	nonExpiredKey := "nonExpired"
+	r.store.Set(nonExpiredKey, Item{
+		Value:  []byte("nonExpired"),
+		Expiry: time.Now().Add(time.Hour), // 1 hour in the future
+	})
+
+	// Call the method under test
+	r.removeExpiredItems()
+
+	// Check that the expired item was removed
+	if _, exists := r.store.Get(expiredKey); exists {
+		t.Errorf("Expected expired item to be removed, but it was not")
+	}
+
+	// Check that the non-expired item was not removed
+	if _, exists := r.store.Get(nonExpiredKey); !exists {
+		t.Errorf("Expected non-expired item to not be removed, but it was")
+	}
 }
 
 func setupCache(t *testing.T) *ramcache {
