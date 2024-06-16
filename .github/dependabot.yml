@@ -19,20 +19,6 @@ updates:
       prefix: "fix"
       include: "scope"
 
-  # - package-ecosystem: "gomod"
-  #   directory: "/internal/cloud"
-  #   assignees:
-  #     - "bartventer"
-  #   reviewers:
-  #     - "bartventer"
-  #   schedule:
-  #     interval: "weekly"
-  #     day: "monday"
-  #     time: "06:00"
-  #   commit-message:
-  #     prefix: "chore"
-  #     include: "scope"
-
   - package-ecosystem: "github-actions"
     directory: "/"
     assignees:
