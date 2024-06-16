@@ -1,4 +1,4 @@
-module github.com/bartventer/gocache/memecache
+module github.com/bartventer/gocache/memcache
 
 go 1.22.4
 
@@ -72,5 +72,5 @@ require (
 )
 
 retract (
-	v1.0.0 // Published accidentally.
+	[v1.0.0, v1.5.0] // Incorrect module path
 )
