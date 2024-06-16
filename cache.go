@@ -93,25 +93,25 @@ var (
 // Each cache implementation should implement this interface.
 type Cache interface {
 	// Set sets a key to a value in the cache.
-	Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error
+	Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error
 
 	// SetWithExpiry sets a key to a value in the cache with an expiry time.
-	SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error
+	SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error
 
 	// Exists checks if a key exists in the cache.
-	Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error)
+	Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error)
 
 	// Count returns the number of keys in the cache matching a pattern.
-	Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error)
+	Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error)
 
 	// Get gets the value of a key from the cache.
-	Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error)
+	Get(ctx context.Context, key string, modifiers ...keymod.Mod) ([]byte, error)
 
 	// Del deletes a key from the cache.
-	Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error
+	Del(ctx context.Context, key string, modifiers ...keymod.Mod) error
 
 	// DelKeys deletes all keys matching a pattern from the cache.
-	DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error
+	DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error
 
 	// Clear clears all keys from the cache.
 	Clear(ctx context.Context) error

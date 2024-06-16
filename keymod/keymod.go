@@ -7,10 +7,10 @@ package keymod
 
 import "strings"
 
-// KeyModifier is a function that modifies a key.
+// Mod is a function that modifies a key.
 //
 // This can be used to add prefixes, suffixes, or hash tags to keys.
-type KeyModifier func(string) string
+type Mod func(string) string
 
 // WithHashTag wraps the given text in curly braces and prepends it to the key.
 //
@@ -22,7 +22,7 @@ type KeyModifier func(string) string
 //
 //	userHashTagModifier := WithHashTag("user123")
 //	userKey := userHashTagModifier("profile") // "{user123}profile"
-func WithHashTag(text string) KeyModifier {
+func WithHashTag(text string) Mod {
 	return func(key string) string {
 		return "{" + strings.Trim(text, "{}") + "}" + key
 	}
@@ -37,7 +37,7 @@ func WithHashTag(text string) KeyModifier {
 //
 //	userPrefixModifier := WithPrefix("user123", ":")
 //	userKey := userPrefixModifier("profile") // "user123:profile"
-func WithPrefix(prefix string, separator string) KeyModifier {
+func WithPrefix(prefix string, separator string) Mod {
 	return func(key string) string {
 		if prefix == "" {
 			return key
@@ -55,7 +55,7 @@ func WithPrefix(prefix string, separator string) KeyModifier {
 //
 //	userSuffixModifier := WithSuffix("profile", ":")
 //	userKey := userSuffixModifier("user123") // "user123:profile"
-func WithSuffix(suffix string, separator string) KeyModifier {
+func WithSuffix(suffix string, separator string) Mod {
 	return func(key string) string {
 		if suffix == "" {
 			return key
@@ -64,7 +64,7 @@ func WithSuffix(suffix string, separator string) KeyModifier {
 	}
 }
 
-// WithChain chains multiple KeyModifier functions together into a single KeyModifier.
+// WithChain chains multiple Mod functions together into a single Mod.
 //
 // This can be used to create complex key modifications in a more readable way.
 //
@@ -72,7 +72,7 @@ func WithSuffix(suffix string, separator string) KeyModifier {
 //
 //	modifier := WithChain(PrefixModifier("user123", ":"), HashTagModifier("user123"))
 //	key := modifier("profile") // "{user123}user123:profile"
-func WithChain(modifiers ...KeyModifier) KeyModifier {
+func WithChain(modifiers ...Mod) Mod {
 	return func(key string) string {
 		for _, modifier := range modifiers {
 			key = modifier(key)
@@ -81,14 +81,14 @@ func WithChain(modifiers ...KeyModifier) KeyModifier {
 	}
 }
 
-// Modify applies the given KeyModifier functions to a key.
+// Modify applies the given Mod functions to a key.
 //
 // This can be used to apply multiple modifications to a key, such as adding a prefix and a hash tag.
 //
 // Example:
 //
 //	key := Modify("profile", PrefixModifier("user123", ":"), HashTagModifier("user123")) // "{user123}user123:profile"
-func Modify(key string, modifiers ...KeyModifier) string {
+func Modify(key string, modifiers ...Mod) string {
 	for _, modifier := range modifiers {
 		key = modifier(key)
 	}

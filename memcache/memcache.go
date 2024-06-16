@@ -112,13 +112,13 @@ func (m *memcacheCache) init(_ context.Context, config *cache.Config, server ...
 }
 
 // Count implements cache.Cache.
-func (m *memcacheCache) Count(_ context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
+func (m *memcacheCache) Count(_ context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
 	return 0, gcerrors.NewWithScheme(Scheme, fmt.Errorf("Count not supported: %w", cache.ErrPatternMatchingNotSupported))
 }
 
 // Exists implements cache.Cache.
-func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymod.Mod) (bool, error) {
+	key = keymod.Modify(key, modifiers...)
 	_, err := m.client.Get(key)
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
@@ -131,8 +131,8 @@ func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymo
 }
 
 // Del implements cache.Cache.
-func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	err := m.client.Delete(key)
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
@@ -145,7 +145,7 @@ func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.K
 }
 
 // DelKeys implements cache.Cache.
-func (m *memcacheCache) DelKeys(_ context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
+func (m *memcacheCache) DelKeys(_ context.Context, pattern string, modifiers ...keymod.Mod) error {
 	return gcerrors.NewWithScheme(Scheme, fmt.Errorf("DelKeys not supported: %w", cache.ErrPatternMatchingNotSupported))
 }
 
@@ -155,8 +155,8 @@ func (m *memcacheCache) Clear(_ context.Context) error {
 }
 
 // Get implements cache.Cache.
-func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.Mod) ([]byte, error) {
+	key = keymod.Modify(key, modifiers...)
 	item, err := m.client.Get(key)
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
@@ -169,8 +169,8 @@ func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.K
 }
 
 // Set implements cache.Cache.
-func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	item := &memcache.Item{
 		Key:   key,
 		Value: []byte(value.(string)),
@@ -183,8 +183,8 @@ func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, mo
 }
 
 // SetWithExpiry implements cache.Cache.
-func (m *memcacheCache) SetWithExpiry(_ context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (m *memcacheCache) SetWithExpiry(_ context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	item := &memcache.Item{
 		Key:        key,
 		Value:      []byte(value.(string)),

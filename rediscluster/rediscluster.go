@@ -127,8 +127,8 @@ func (r *redisClusterCache) init(_ context.Context, config *cache.Config, option
 }
 
 // Count implements cache.Cache.
-func (r *redisClusterCache) Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
-	pattern = keymod.ModifyKey(pattern, modifiers...)
+func (r *redisClusterCache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
+	pattern = keymod.Modify(pattern, modifiers...)
 	var count int64
 	err := r.client.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
 		iter := client.Scan(ctx, 0, pattern, r.config.CountLimit).Iterator()
@@ -149,8 +149,8 @@ func (r *redisClusterCache) Count(ctx context.Context, pattern string, modifiers
 }
 
 // Exists implements cache.Cache.
-func (r *redisClusterCache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *redisClusterCache) Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error) {
+	key = keymod.Modify(key, modifiers...)
 	n, err := r.client.Exists(ctx, key).Result()
 	if err != nil {
 		return false, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error checking key %s: %w", key, err))
@@ -159,8 +159,8 @@ func (r *redisClusterCache) Exists(ctx context.Context, key string, modifiers ..
 }
 
 // Del implements cache.Cache.
-func (r *redisClusterCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *redisClusterCache) Del(ctx context.Context, key string, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	delCount, err := r.client.Del(ctx, key).Result()
 	if err != nil {
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting key %s: %w", key, err))
@@ -172,8 +172,8 @@ func (r *redisClusterCache) Del(ctx context.Context, key string, modifiers ...ke
 }
 
 // DelKeys implements cache.Cache.
-func (r *redisClusterCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
-	pattern = keymod.ModifyKey(pattern, modifiers...)
+func (r *redisClusterCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error {
+	pattern = keymod.Modify(pattern, modifiers...)
 	return r.client.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
 		iter := client.Scan(ctx, 0, pattern, r.config.CountLimit).Iterator()
 		var keys []string
@@ -201,8 +201,8 @@ func (r *redisClusterCache) Clear(ctx context.Context) error {
 }
 
 // Get implements cache.Cache.
-func (r *redisClusterCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *redisClusterCache) Get(ctx context.Context, key string, modifiers ...keymod.Mod) ([]byte, error) {
+	key = keymod.Modify(key, modifiers...)
 	val, err := r.client.Get(ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -215,14 +215,14 @@ func (r *redisClusterCache) Get(ctx context.Context, key string, modifiers ...ke
 }
 
 // Set implements cache.Cache.
-func (r *redisClusterCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *redisClusterCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	return r.client.Set(ctx, key, value, 0).Err()
 }
 
 // SetWithExpiry implements cache.Cache.
-func (r *redisClusterCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *redisClusterCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	return r.client.Set(ctx, key, value, expiry).Err()
 }
 

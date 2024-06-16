@@ -69,12 +69,12 @@ func TestWithChain(t *testing.T) {
 	tests := []struct {
 		name      string
 		key       string
-		modifiers []KeyModifier
+		modifiers []Mod
 		expected  string
 	}{
-		{"No modifiers", "key", []KeyModifier{}, "key"},
-		{"One modifier", "key", []KeyModifier{WithHashTag("tag")}, "{tag}key"},
-		{"Multiple modifiers", "key", []KeyModifier{WithHashTag("tag1"), WithPrefix("prefix", ":")}, "prefix:{tag1}key"},
+		{"No modifiers", "key", []Mod{}, "key"},
+		{"One modifier", "key", []Mod{WithHashTag("tag")}, "{tag}key"},
+		{"Multiple modifiers", "key", []Mod{WithHashTag("tag1"), WithPrefix("prefix", ":")}, "prefix:{tag1}key"},
 	}
 
 	for _, tt := range tests {
@@ -89,12 +89,12 @@ func TestModify(t *testing.T) {
 	tests := []struct {
 		name      string
 		key       string
-		modifiers []KeyModifier
+		modifiers []Mod
 		expected  string
 	}{
-		{"No modifiers", "key", []KeyModifier{}, "key"},
-		{"One modifier", "key", []KeyModifier{WithHashTag("tag")}, "{tag}key"},
-		{"Multiple modifiers", "key", []KeyModifier{WithHashTag("tag1"), WithHashTag("tag2")}, "{tag2}{tag1}key"},
+		{"No modifiers", "key", []Mod{}, "key"},
+		{"One modifier", "key", []Mod{WithHashTag("tag")}, "{tag}key"},
+		{"Multiple modifiers", "key", []Mod{WithHashTag("tag1"), WithHashTag("tag2")}, "{tag2}{tag1}key"},
 	}
 
 	for _, tt := range tests {

@@ -171,13 +171,13 @@ func New(ctx context.Context, config *cache.Config, options Options) *ramcache {
 var _ cache.Cache = &ramcache{}
 
 // Count implements cache.Cache.
-func (r *ramcache) Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
+func (r *ramcache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
 	return 0, gcerrors.NewWithScheme(Scheme, fmt.Errorf("Count not supported: %w", cache.ErrPatternMatchingNotSupported))
 }
 
 // Exists implements cache.Cache.
-func (r *ramcache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *ramcache) Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error) {
+	key = keymod.Modify(key, modifiers...)
 	item, exists := r.store.Get(key)
 	if exists && item.IsExpired() {
 		r.store.Delete(key)
@@ -187,8 +187,8 @@ func (r *ramcache) Exists(ctx context.Context, key string, modifiers ...keymod.K
 }
 
 // Del implements cache.Cache.
-func (r *ramcache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *ramcache) Del(ctx context.Context, key string, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	_, exists := r.store.Get(key)
 	if !exists {
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w", key, cache.ErrKeyNotFound))
@@ -198,7 +198,7 @@ func (r *ramcache) Del(ctx context.Context, key string, modifiers ...keymod.KeyM
 }
 
 // DelKeys implements cache.Cache.
-func (r *ramcache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
+func (r *ramcache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error {
 	return gcerrors.NewWithScheme(Scheme, fmt.Errorf("DelKeys not supported: %w", cache.ErrPatternMatchingNotSupported))
 }
 
@@ -209,8 +209,8 @@ func (r *ramcache) Clear(ctx context.Context) error {
 }
 
 // Get implements cache.Cache.
-func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.Mod) ([]byte, error) {
+	key = keymod.Modify(key, modifiers...)
 	item, exists := r.store.Get(key)
 	if !exists || item.IsExpired() {
 		r.store.Delete(key)
@@ -220,8 +220,8 @@ func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.KeyM
 }
 
 // Set implements cache.Cache.
-func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	switch v := value.(type) {
 	case string:
 		r.store.Set(key, item{Value: []byte(v), Expiry: time.Now().Add(r.opts.DefaultTTL)})
@@ -234,8 +234,8 @@ func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modif
 }
 
 // SetWithExpiry implements cache.Cache.
-func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
-	key = keymod.ModifyKey(key, modifiers...)
+func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+	key = keymod.Modify(key, modifiers...)
 	switch v := value.(type) {
 	case string:
 		r.store.Set(key, item{Value: []byte(v), Expiry: time.Now().Add(expiry)})

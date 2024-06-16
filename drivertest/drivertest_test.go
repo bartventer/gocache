@@ -38,12 +38,12 @@ func (r *MockCache) init(_ context.Context, config *cache.Config, options Option
 var _ cache.Cache = &MockCache{}
 
 // Count implements cache.Cache.
-func (r *MockCache) Count(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) (int64, error) {
+func (r *MockCache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
 	return 0, cache.ErrPatternMatchingNotSupported
 }
 
 // Exists implements cache.Cache.
-func (r *MockCache) Exists(ctx context.Context, key string, modifiers ...keymod.KeyModifier) (bool, error) {
+func (r *MockCache) Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error) {
 	key = keymod.Modify(key, modifiers...)
 	r.mu.RLock()
 	item, exists := r.store[key]
@@ -58,7 +58,7 @@ func (r *MockCache) Exists(ctx context.Context, key string, modifiers ...keymod.
 }
 
 // Del implements cache.Cache.
-func (r *MockCache) Del(ctx context.Context, key string, modifiers ...keymod.KeyModifier) error {
+func (r *MockCache) Del(ctx context.Context, key string, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -70,7 +70,7 @@ func (r *MockCache) Del(ctx context.Context, key string, modifiers ...keymod.Key
 }
 
 // DelKeys implements cache.Cache.
-func (r *MockCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.KeyModifier) error {
+func (r *MockCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error {
 	return cache.ErrPatternMatchingNotSupported
 }
 
@@ -83,7 +83,7 @@ func (r *MockCache) Clear(ctx context.Context) error {
 }
 
 // Get implements cache.Cache.
-func (r *MockCache) Get(ctx context.Context, key string, modifiers ...keymod.KeyModifier) ([]byte, error) {
+func (r *MockCache) Get(ctx context.Context, key string, modifiers ...keymod.Mod) ([]byte, error) {
 	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -96,7 +96,7 @@ func (r *MockCache) Get(ctx context.Context, key string, modifiers ...keymod.Key
 }
 
 // Set implements cache.Cache.
-func (r *MockCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.KeyModifier) error {
+func (r *MockCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -112,7 +112,7 @@ func (r *MockCache) Set(ctx context.Context, key string, value interface{}, modi
 }
 
 // SetWithExpiry implements cache.Cache.
-func (r *MockCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.KeyModifier) error {
+func (r *MockCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
