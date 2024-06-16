@@ -33,7 +33,7 @@ jobs:
                 echo "COVERAGE_FILES=$(find ${{ env.COVERDIR }} -type f | tr '\n' ',' | sed 's/,$//')" | tee -a $GITHUB_OUTPUT
 
             - name: Upload coverage reports to Codecov
-              uses: codecov/codecov-action@v4.4.1
+              uses: codecov/codecov-action@v4.5.0
               with:
                 token: ${{ secrets.CODECOV_TOKEN }}
                 files: ${{ steps.test.outputs.COVERAGE_FILES }}
