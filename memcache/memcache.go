@@ -40,7 +40,6 @@ Example via [memcache.New] constructor:
 	    "log"
 	    "net/url"
 
-	    "github.com/bartventer/gocache"
 	    "github.com/bartventer/gocache/memcache"
 	)
 
