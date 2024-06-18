@@ -15,6 +15,11 @@ The query part, though optional, can be used for additional configuration throug
 Query parameters can be used to configure the in-memory cache options. The keys of the query
 parameters should correspond to the case-insensitive field names of [Options].
 
+# Value Types
+
+Values being set in the cache should be of type `[]byte`, `string`, or implement the
+[encoding.BinaryMarshaler] or [encoding.TextMarshaler] interfaces.
+
 # Usage
 
 Example via generic cache interface:
@@ -29,7 +34,8 @@ Example via generic cache interface:
 
 	func main() {
 	    ctx := context.Background()
-	    c, err := cache.OpenCache(ctx, "ramcache://?defaultttl=5m", cache.Options{})
+		urlStr := "ramcache://?defaultttl=5m&cleanupinterval=1m"
+	    c, err := cache.OpenCache(ctx, urlStr)
 	    if err != nil {
 	        log.Fatalf("Failed to initialize cache: %v", err)
 	    }
@@ -47,7 +53,7 @@ Example via [ramcache.New] constructor:
 
 	func main() {
 	    ctx := context.Background()
-	    c := ramcache.New(ctx, &cache.Config{}, ramcache.Options{DefaultTTL: 5 * time.Minute})
+	    c := ramcache.New(ctx, &ramcache.Options{DefaultTTL: 5 * time.Minute})
 	    // ... use c with the cache.Cache interface
 	}
 
@@ -61,6 +67,7 @@ package ramcache
 
 import (
 	"context"
+	"encoding"
 	"fmt"
 	"net/url"
 	"sync"
@@ -81,51 +88,39 @@ func init() { //nolint:gochecknoinits // This is the entry point of the package.
 var _ cache.Cache = new(ramcache)
 var _ cache.URLOpener = new(ramcache)
 
-// Options are the cache options.
-type Options struct {
-	// DefaultTTL is the default time-to-live for cache items.
-	// If not set, the default is 24 hours.
-	DefaultTTL time.Duration
-	// CleanupInterval is the interval at which checks for expired items are performed.
-	// If not set, the default is 5 minutes.
-	CleanupInterval time.Duration
-}
-
-// Revise revises the options, ensuring sensible defaults are set.
-func (r *Options) Revise() {
-	if r.DefaultTTL <= 0 {
-		r.DefaultTTL = 24 * time.Hour
-	}
-	if r.CleanupInterval <= 0 {
-		r.CleanupInterval = 5 * time.Minute
-	}
-}
-
 // ramcache is an in-memory implementation of the cache.Cache interface.
 type ramcache struct {
 	once   sync.Once     // once ensures that the cache is initialized only once.
 	store  *store        // store is the in-memory store.
-	config *cache.Config // config is the cache configuration.
 	opts   *Options      // options is the cache options.
 	stopCh chan struct{} // stopCh is the stop channel.
 }
 
+// New returns a new in-memory cache implementation.
+func New(ctx context.Context, opts *Options) *ramcache {
+	r := &ramcache{}
+	r.init(ctx, opts)
+	return r
+}
+
 // OpenCacheURL implements cache.URLOpener.
-func (r *ramcache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
-	ramOpts, err := optionsFromURL(u, options.Metadata)
+func (r *ramcache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
+	opts, err := optionsFromURL(u)
 	if err != nil {
-		return nil, err
+		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("failed to parse URL: %w", err))
 	}
-	r.init(ctx, &options.Config, ramOpts)
+	r.init(ctx, &opts)
 	return r, nil
 }
 
-func (r *ramcache) init(_ context.Context, config *cache.Config, options Options) {
+func (r *ramcache) init(_ context.Context, opts *Options) {
 	r.once.Do(func() {
-		r.config = config
 		r.store = newStore()
-		options.Revise()
-		r.opts = &options
+		if opts == nil {
+			opts = &Options{}
+		}
+		opts.revise()
+		r.opts = opts
 		r.stopCh = make(chan struct{})
 		go r.cleanupExpiredItems()
 	})
@@ -158,17 +153,6 @@ func (r *ramcache) removeExpiredItems() {
 		}
 	}
 }
-
-// New returns a new in-memory cache implementation.
-func New(ctx context.Context, config *cache.Config, options Options) *ramcache {
-	config.Revise()
-	r := &ramcache{}
-	r.init(ctx, config, options)
-	return r
-}
-
-// Ensure ramcache implements the cache.Cache interface.
-var _ cache.Cache = &ramcache{}
 
 // Count implements cache.Cache.
 func (r *ramcache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
@@ -222,28 +206,38 @@ func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.Mod)
 // Set implements cache.Cache.
 func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
-	switch v := value.(type) {
-	case string:
-		r.store.Set(key, item{Value: []byte(v), Expiry: time.Now().Add(r.opts.DefaultTTL)})
-	case []byte:
-		r.store.Set(key, item{Value: v, Expiry: time.Now().Add(r.opts.DefaultTTL)})
-	default:
-		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
-	}
-	return nil
+	return r.set(key, value, r.opts.DefaultTTL)
 }
 
 // SetWithExpiry implements cache.Cache.
 func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
+	return r.set(key, value, expiry)
+}
+
+func (r *ramcache) set(key string, value interface{}, expiry time.Duration) error {
+	var data []byte
 	switch v := value.(type) {
 	case string:
-		r.store.Set(key, item{Value: []byte(v), Expiry: time.Now().Add(expiry)})
+		data = []byte(v)
 	case []byte:
-		r.store.Set(key, item{Value: v, Expiry: time.Now().Add(expiry)})
+		data = v
+	case encoding.BinaryMarshaler:
+		var err error
+		data, err = v.MarshalBinary()
+		if err != nil {
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("failed to marshal value: %w", err))
+		}
+	case encoding.TextMarshaler:
+		var err error
+		data, err = v.MarshalText()
+		if err != nil {
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("failed to marshal value: %w", err))
+		}
 	default:
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
 	}
+	r.store.Set(key, item{Value: data, Expiry: time.Now().Add(expiry)})
 	return nil
 }
 

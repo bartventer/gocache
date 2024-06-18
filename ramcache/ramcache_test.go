@@ -18,7 +18,7 @@ func TestRamcacheCache_OpenCacheURL(t *testing.T) {
 	u, err := url.Parse("ramcache://?defaultttl=1h")
 	require.NoError(t, err)
 
-	_, err = r.OpenCacheURL(context.Background(), u, &cache.Options{})
+	_, err = r.OpenCacheURL(context.Background(), u)
 	require.NoError(t, err)
 	assert.NotNil(t, r.store)
 }
@@ -26,9 +26,8 @@ func TestRamcacheCache_OpenCacheURL(t *testing.T) {
 func TestRamcacheCache_New(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	config := cache.Config{}
 
-	r := New(ctx, &config, Options{})
+	r := New(ctx, &Options{})
 	require.NotNil(t, r)
 	assert.NotNil(t, r.store)
 }
@@ -36,7 +35,7 @@ func TestRamcacheCache_New(t *testing.T) {
 func Test_ramcache_removeExpiredItems(t *testing.T) {
 	ctx := context.Background()
 	r := &ramcache{}
-	r.init(ctx, &cache.Config{}, Options{DefaultTTL: 24 * time.Hour, CleanupInterval: 5 * time.Minute})
+	r.init(ctx, &Options{DefaultTTL: 24 * time.Hour, CleanupInterval: 5 * time.Minute})
 
 	// Add an expired item
 	expiredKey := "expired"
@@ -66,10 +65,99 @@ func Test_ramcache_removeExpiredItems(t *testing.T) {
 	}
 }
 
+func Test_ramcache_set(t *testing.T) {
+	ctx := context.Background()
+	cache := New(ctx, &Options{})
+
+	tests := []struct {
+		name    string
+		key     string
+		value   interface{}
+		wantErr bool
+	}{
+		{
+			name:    "set string",
+			key:     "key1",
+			value:   "value1",
+			wantErr: false,
+		},
+		{
+			name:    "set bytes",
+			key:     "key2",
+			value:   []byte("value2"),
+			wantErr: false,
+		},
+		{
+			name:    "set binary marshaler",
+			key:     "key3",
+			value:   &BinaryMarshaler{},
+			wantErr: false,
+		},
+		{
+			name:    "set text marshaler",
+			key:     "key4",
+			value:   &TextMarshaler{},
+			wantErr: false,
+		},
+		{
+			name:    "set unsupported type",
+			key:     "key5",
+			value:   123,
+			wantErr: true,
+		},
+		{
+			name:    "set binary marshaler error",
+			key:     "key6",
+			value:   &BinaryMarshalerError{},
+			wantErr: true,
+		},
+		{
+			name:    "set text marshaler error",
+			key:     "key7",
+			value:   &TextMarshalerError{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := cache.Set(ctx, tt.key, tt.value)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+type BinaryMarshaler struct{}
+
+func (bm *BinaryMarshaler) MarshalBinary() ([]byte, error) {
+	return []byte("binary marshaler"), nil
+}
+
+type BinaryMarshalerError struct{}
+
+func (bm *BinaryMarshalerError) MarshalBinary() ([]byte, error) {
+	return nil, assert.AnError
+}
+
+type TextMarshaler struct{}
+
+func (tm *TextMarshaler) MarshalText() ([]byte, error) {
+	return []byte("text marshaler"), nil
+}
+
+type TextMarshalerError struct{}
+
+func (tm *TextMarshalerError) MarshalText() ([]byte, error) {
+	return nil, assert.AnError
+}
+
 func setupCache(t *testing.T) *ramcache {
 	t.Helper()
-	config := cache.Config{}
-	r := New(context.Background(), &config, Options{})
+	r := New(context.Background(), &Options{})
 	return r
 }
 
