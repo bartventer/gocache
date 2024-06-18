@@ -47,13 +47,15 @@ Example via [ramcache.New] constructor:
 	import (
 	    "context"
 
-	    "github.com/bartventer/gocache"
 	    "github.com/bartventer/gocache/ramcache"
 	)
 
 	func main() {
 	    ctx := context.Background()
-	    c := ramcache.New(ctx, &ramcache.Options{DefaultTTL: 5 * time.Minute})
+	    c := ramcache.New(ctx, &ramcache.Options{
+			DefaultTTL: 5 * time.Minute,
+			CleanupInterval: 1 * time.Minute,
+		})
 	    // ... use c with the cache.Cache interface
 	}
 
