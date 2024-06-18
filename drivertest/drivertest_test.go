@@ -19,18 +19,14 @@ type Item struct {
 
 // MockCache is an in-memory implementation of the cache.Cache interface.
 type MockCache struct {
-	once   sync.Once       // once ensures that the cache is initialized only once.
-	mu     sync.RWMutex    // mu guards the store.
-	store  map[string]Item // store is the in-memory store.
-	config *cache.Config   // config is the cache configuration.
-	opts   *Options        // options is the cache options.
+	once  sync.Once       // once ensures that the cache is initialized only once.
+	mu    sync.RWMutex    // mu guards the store.
+	store map[string]Item // store is the in-memory store.
 }
 
-func (r *MockCache) init(_ context.Context, config *cache.Config, options Options) {
+func (r *MockCache) init(_ context.Context) {
 	r.once.Do(func() {
-		r.config = config
 		r.store = make(map[string]Item)
-		r.opts = &options
 	})
 }
 
@@ -139,16 +135,7 @@ func (r *MockCache) Ping(ctx context.Context) error {
 
 // NewMockCache returns a new MockCache.
 func NewMockCache() *MockCache {
-	return &MockCache{
-		store: make(map[string]Item),
-		config: &cache.Config{
-			CountLimit: 1000,
-		},
-		opts: &Options{
-			PatternMatchingDisabled: true,
-			CloseIsNoop:             true,
-		},
-	}
+	return &MockCache{store: make(map[string]Item)}
 }
 
 type MockHarness struct{}
