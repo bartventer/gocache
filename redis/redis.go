@@ -25,7 +25,6 @@ Example via generic cache interface:
 	import (
 	    "context"
 	    "log"
-	    "net/url"
 
 	    cache "github.com/bartventer/gocache"
 	    _ "github.com/bartventer/gocache/redis"
@@ -45,8 +44,6 @@ Example via [redis.New] constructor:
 
 	import (
 	    "context"
-	    "log"
-	    "net/url"
 
 	    "github.com/bartventer/gocache/redis"
 	)
@@ -54,7 +51,7 @@ Example via [redis.New] constructor:
 	func main() {
 	    ctx := context.Background()
 	    c := redis.New(ctx, &redis.Options{
-	        RedisOptions: redis.Options{
+	        RedisOptions: redis.RedisOptions{
 				Addr: "localhost:6379",
 				MaxRetries: 5,
 				MinRetryBackoff: 1000 * time.Millisecond,

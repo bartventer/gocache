@@ -67,7 +67,7 @@ import (
 func main() {
     ctx := context.Background()
     c := redis.New(ctx, &redis.Options{
-        RedisOptions: &redis.Options{
+        RedisOptions: &redis.RedisOptions{
             Addr: "localhost:7000",
             MaxRetries: 5,
             MinRetryBackoff: 1000 * time.Millisecond,
