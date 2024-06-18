@@ -47,7 +47,7 @@ import (
 func main() {
     ctx := context.Background()
     urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000ms"
-    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
+    c, err := cache.OpenCache(ctx, urlStr)
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
     }
@@ -61,15 +61,17 @@ func main() {
 import (
     "context"
 
-    "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/redis"
-    "github.com/redis/go-redis/v9"
 )
 
 func main() {
     ctx := context.Background()
-    c := redis.New(ctx, cache.Config{}, redis.Options{
-        Addr: "localhost:7000",
+    c := redis.New(ctx, &redis.Options{
+        RedisOptions: &redis.Options{
+            Addr: "localhost:7000",
+            MaxRetries: 5,
+            MinRetryBackoff: 1000 * time.Millisecond,
+        },
     })
     // ... use c with the cache.Cache interface
 }
@@ -91,7 +93,7 @@ import (
 func main() {
     ctx := context.Background()
     urlStr := "rediscluster://localhost:7000,localhost:7001,localhost:7002?maxretries=5&minretrybackoff=1000"
-    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
+    c, err := cache.OpenCache(ctx, urlStr)
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
     }
@@ -105,15 +107,17 @@ func main() {
 import (
     "context"
 
-    "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/rediscluster"
-    "github.com/redis/go-redis/v9"
 )
 
 func main() {
     ctx := context.Background()
-    c := rediscluster.New(ctx, cache.Config{}, redis.ClusterOptions{
-        Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
+    c := rediscluster.New(ctx, &rediscluster.Options{
+        ClusterOptions: &rediscluster.ClusterOptions{
+            Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
+            MaxRetries: 5,
+            MinRetryBackoff: 1000 * time.Millisecond,
+        },
     })
     // ... use c with the cache.Cache interface
 }
@@ -135,7 +139,7 @@ import (
 func main() {
     ctx := context.Background()
     urlStr := "memcache://localhost:11211"
-    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
+    c, err := cache.OpenCache(ctx, urlStr)
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
     }
@@ -149,13 +153,14 @@ func main() {
 import (
     "context"
 
-    "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/memcache"
 )
 
 func main() {
     ctx := context.Background()
-    c := memcache.New(ctx, cache.Config{}, "localhost:11211")
+    c := memcache.New(ctx, &memcache.Options{
+        Addrs: []string{"localhost:11211"},
+    })
     // ... use c with the cache.Cache interface
 }
 ```
@@ -175,7 +180,8 @@ import (
 
 func main() {
     ctx := context.Background()
-    c, err := cache.OpenCache(ctx, "ramcache://?defaultttl=5m", cache.Options{})
+    urlStr := "ramcache://?defaultttl=5m"
+    c, err := cache.OpenCache(ctx, urlStr)
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
     }
@@ -189,13 +195,14 @@ func main() {
 import (
     "context"
 
-    "github.com/bartventer/gocache"
     "github.com/bartventer/gocache/ramcache"
 )
 
 func main() {
     ctx := context.Background()
-    c := ramcache.New(ctx, &cache.Config{}, ramcache.Options{DefaultTTL: 5 * time.Minute})
+    c := ramcache.New(ctx, &ramcache.Options{
+        DefaultTTL: 5 * time.Minute,
+    })
     // ... use c with the cache.Cache interface
 }
 ```
@@ -207,3 +214,7 @@ All contributions are welcome! Open a pull request to request a feature or submi
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgements
+
+This package has been inspired by and uses similar patterns to those used in [Google's Go Cloud Development Kit](https://github.com/google/go-cloud). Make sure to [check it out](https://gocloud.dev/)!
