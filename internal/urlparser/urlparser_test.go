@@ -3,10 +3,7 @@ package urlparser
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
-	"encoding/pem"
 	"net/url"
-	"reflect"
 	"testing"
 	"time"
 
@@ -15,7 +12,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+type Embedded struct {
+	Name string
+}
+
 type FakeOptions struct {
+	Embedded
 	Addr            string
 	MaxRetries      int
 	MinRetryBackoff time.Duration
@@ -92,6 +94,30 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "returns error for non-pointer destination",
+			args: args{
+				u:                 mustParseURL("fake://localhost:6379?tlsconfig=" + url.QueryEscape(testTLSConfigJSON)),
+				options:           FakeOptions{}, // non-pointer destination, should return mapstructure error
+				paramKeyBlacklist: map[string]bool{},
+			},
+			want:    &FakeOptions{},
+			wantErr: true,
+		},
+		{
+			name: "parses embedded struct",
+			args: args{
+				u:                 mustParseURL("fake://localhost:6379?name=TestName"),
+				options:           &FakeOptions{},
+				paramKeyBlacklist: map[string]bool{},
+			},
+			want: &FakeOptions{
+				Embedded: Embedded{
+					Name: "TestName",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	parser := NewURLParser(
@@ -113,105 +139,12 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 				t.Errorf("OptionsFromURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			if tt.wantErr {
+				return
+			}
 			if diff := cmp.Diff(tt.want, tt.args.options, cmpopts.IgnoreUnexported(FakeOptions{}, tls.Config{})); diff != "" {
 				t.Errorf("mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
-
-func TestStringToCertificateHookFunc(t *testing.T) {
-	hook := StringToCertificateHookFunc()
-
-	// Test that the hook correctly parses a certificate from a PEM string
-	cert, err := hook(reflect.TypeOf(""), reflect.TypeOf(&x509.Certificate{}), testCertPEM)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if diff := cmp.Diff(mustParseCertificate(testCertPEM), cert, cmpopts.IgnoreUnexported(x509.Certificate{})); diff != "" {
-		t.Errorf("mismatch (-want +got):\n%s", diff)
-	}
-
-	// Test that the hook returns an error for an invalid PEM string
-	_, err = hook(reflect.TypeOf(""), reflect.TypeOf(&x509.Certificate{}), "invalid")
-	if err == nil {
-		t.Error("expected an error, got nil")
-	}
-}
-
-func TestStringToTLSConfigHookFunc(t *testing.T) {
-	hook := StringToTLSConfigHookFunc()
-
-	// Test that the hook correctly unmarshals a TLS config from a JSON string
-	config, err := hook(reflect.TypeOf(""), reflect.TypeOf(&tls.Config{}), testTLSConfigJSON)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if diff := cmp.Diff(mustUnmarshalTLSConfig(testTLSConfigJSON), config, cmpopts.IgnoreUnexported(tls.Config{})); diff != "" {
-		t.Errorf("mismatch (-want +got):\n%s", diff)
-	}
-
-	// Test that the hook returns an error for an invalid JSON string
-	_, err = hook(reflect.TypeOf(""), reflect.TypeOf(&tls.Config{}), "invalid")
-	if err == nil {
-		t.Error("expected an error, got nil")
-	}
-}
-
-func mustParseURL(s string) *url.URL {
-	u, err := url.Parse(s)
-	if err != nil {
-		panic(err)
-	}
-	return u
-}
-
-func mustParseCertificate(pemStr string) *x509.Certificate {
-	block, _ := pem.Decode([]byte(pemStr))
-	if block == nil {
-		panic("failed to decode PEM block containing certificate")
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		panic(err)
-	}
-	return cert
-}
-
-func mustUnmarshalTLSConfig(jsonStr string) *tls.Config {
-	var config tls.Config
-	err := json.Unmarshal([]byte(jsonStr), &config)
-	if err != nil {
-		panic(err)
-	}
-	return &config
-}
-
-// testCertPEM is a PEM-encoded certificate.
-//
-// Generated with:
-//
-//	openssl req -x509 -newkey rsa:512 -keyout key.pem -out cert.pem -days 365 -nodes.
-const testCertPEM = `
------BEGIN CERTIFICATE-----
-MIIBfzCCASmgAwIBAgIUCIdg9oq/sX8obdNZkxkrxuGOyr8wDQYJKoZIhvcNAQEL
-BQAwFDESMBAGA1UEAwwJbG9jYWxob3N0MB4XDTI0MDYxNzA4MDgzM1oXDTI1MDYx
-NzA4MDgzM1owFDESMBAGA1UEAwwJbG9jYWxob3N0MFwwDQYJKoZIhvcNAQEBBQAD
-SwAwSAJBAOBO8thWynustgb/5cvGbRraAZ305q4UKOThemEIsI/WhsXK0fqJ/Emq
-8AVAJaogrD3yGYROJKEJ9loqh4D3jZ0CAwEAAaNTMFEwHQYDVR0OBBYEFILgGDUB
-Hx9t+vv3mzp+yUlv4YsdMB8GA1UdIwQYMBaAFILgGDUBHx9t+vv3mzp+yUlv4Ysd
-MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADQQBiJro5f93F5CuoDpI9
-Lu+hGkgtwvizqONHBGmSo4mX4M0f8n65gJn3qBpyYQIJTVKtL0VXsjxrOnuj8DUx
-jmtJ
------END CERTIFICATE-----
-`
-
-// testTLSConfigJSON is a JSON-encoded TLS config.
-const testTLSConfigJSON = `{
-    "InsecureSkipVerify": true,
-    "MinVersion": 771,
-    "CipherSuites": [4865, 4866],
-    "PreferServerCipherSuites": true,
-    "ServerName": "localhost",
-	"ClientAuth": 1
-}`
