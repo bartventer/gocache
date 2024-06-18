@@ -26,7 +26,7 @@ func Test_optionsFromURL(t *testing.T) {
 				u: mustParseURL("redis://localhost:6379?maxretries=5&minretrybackoff=512ms"),
 			},
 			want: Options{
-				Options: redis.Options{
+				RedisOptions: redis.Options{
 					Addr:            "localhost:6379",
 					MaxRetries:      5,
 					MinRetryBackoff: 512 * time.Millisecond,
@@ -41,7 +41,7 @@ func Test_optionsFromURL(t *testing.T) {
 				u: mustParseURL("redis://localhost:6379?addr=someotherhost:6379"),
 			},
 			want: Options{
-				Options: redis.Options{
+				RedisOptions: redis.Options{
 					Addr: "localhost:6379",
 				},
 			},

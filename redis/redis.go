@@ -48,15 +48,17 @@ Example via [redis.New] constructor:
 	    "log"
 	    "net/url"
 
-	    "github.com/bartventer/gocache"
 	    "github.com/bartventer/gocache/redis"
-	    "github.com/redis/go-redis/v9"
 	)
 
 	func main() {
 	    ctx := context.Background()
 	    c := redis.New(ctx, &redis.Options{
-	        Addr: "localhost:6379",
+	        RedisOptions: redis.Options{
+				Addr: "localhost:6379",
+				MaxRetries: 5,
+				MinRetryBackoff: 1000 * time.Millisecond,
+			},
 	    })
 	    // ... use c with the cache.Cache interface
 	}
@@ -96,7 +98,7 @@ func New(ctx context.Context, opts *Options) *redisCache {
 	if opts == nil {
 		opts = &Options{}
 	}
-	r.init(ctx, opts.Config, &opts.Options)
+	r.init(ctx, opts.Config, &opts.RedisOptions)
 	return r
 }
 
@@ -109,7 +111,7 @@ func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache,
 	if err != nil {
 		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error parsing URL: %w", err))
 	}
-	r.init(ctx, opts.Config, &opts.Options)
+	r.init(ctx, opts.Config, &opts.RedisOptions)
 	return r, nil
 }
 

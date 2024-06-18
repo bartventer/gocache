@@ -38,7 +38,7 @@ func TestRedisCache_New(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	r := New(ctx, &Options{
-		Options: redis.Options{
+		RedisOptions: RedisOptions{
 			Addr: defaultAddr,
 		},
 	})
