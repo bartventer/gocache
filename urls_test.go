@@ -9,7 +9,7 @@ import (
 
 type mockURLOpener struct{}
 
-func (m *mockURLOpener) OpenCacheURL(ctx context.Context, u *url.URL, options *Options) (Cache, error) {
+func (m *mockURLOpener) OpenCacheURL(ctx context.Context, u *url.URL) (Cache, error) {
 	if u.Scheme == "err" {
 		return nil, errors.New("forced error")
 	}
@@ -63,7 +63,7 @@ func TestCache(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, gotErr := mux.OpenCache(ctx, tc.url, &Options{})
+			_, gotErr := mux.OpenCache(ctx, tc.url)
 			if (gotErr != nil) != tc.wantErr {
 				t.Fatalf("got err %v, want error %v", gotErr, tc.wantErr)
 			}

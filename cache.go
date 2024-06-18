@@ -2,8 +2,8 @@
 Package cache offers a library for managing caches in a unified manner in Go.
 
 This package enables developers to transition between various cache implementations
-(such as Redis, Redis Cluster, etc.) by altering the URL scheme. This is achieved by
-offering consistent, idiomatic interfaces for common operations.
+(such as Redis, Redis Cluster, Memcache, etc.) by altering the URL scheme. This is
+achieved by offering consistent, idiomatic interfaces for common operations.
 
 Central to this package are "portable types", built atop service-specific drivers for
 supported cache services. For instance, cache.Cache portable type instances can be
@@ -41,7 +41,7 @@ use the correct cache implementation based on the URL scheme.
 	func main() {
 	    ctx := context.Background()
 	    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000"
-	    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
+	    c, err := cache.OpenCache(ctx, urlStr)
 	    if err != nil {
 	        log.Fatalf("Failed to initialize cache: %v", err)
 	    }
@@ -69,9 +69,7 @@ package cache
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/bartventer/gocache/keymod"
@@ -121,75 +119,4 @@ type Cache interface {
 
 	// Close closes the cache connection.
 	Close() error
-}
-
-const (
-	// DefaultCountLimit is the default value for the [Config.CountLimit] option.
-	DefaultCountLimit = 10
-)
-
-// Config is a struct that holds configuration options for the cache package.
-//
-// # Compatibility
-//
-// These options are recognized by all cache drivers.
-type Config struct {
-	once sync.Once // once ensures the configuration is revised only once.
-	// CountLimit is the hint to the SCAN command about the amount of work to be done at each call.
-	// It does not guarantee the exact number of elements returned at every iteration, but the server
-	// will usually return this count or a few more elements per call. For small sets or hashes, all
-	// elements may be returned in the first SCAN call regardless of the CountLimit value. The CountLimit
-	// value can be changed between iterations. The default value is 10.
-	CountLimit int64
-}
-
-// Revise revises the configuration options to ensure they contain sensible values.
-func (c *Config) Revise() {
-	c.once.Do(c.revise)
-}
-
-func (c *Config) revise() {
-	if c.CountLimit <= 0 {
-		c.CountLimit = DefaultCountLimit
-	}
-}
-
-// Options is a struct that holds provider specific configuration options.
-//
-// # Compatibility
-//
-// These options are only recognized by the following drivers:
-//   - [redis]
-//   - [rediscluster]
-//
-// Other drivers will simply ignore these options.
-//
-// [redis]: https://pkg.go.dev/github.com/bartventer/gocache/redis
-// [rediscluster]: https://pkg.go.dev/github.com/bartventer/gocache/rediscluster
-type Options struct {
-	Config
-	// TLSConfig is the TLS configuration for the cache connection.
-	TLSConfig *tls.Config
-	// CredentialsProvider is a function that returns the username and password for the cache connection.
-	CredentialsProvider func(ctx context.Context) (username string, password string, err error)
-	// Metadata is a map of provider specific configuration options.
-	// It offers an alternative method for configuring the provider.
-	// These values will override the URL values.
-	// Note: Network address (host:port) and function values will be ignored if provided.
-	// Refer to the driver documentation for available options.
-	// The map keys are case insensitive.
-	//
-	// Example usage for a Redis cache:
-	//
-	//  map[string]string{
-	// 	 	"Network": "tcp",
-	// 	 	"MaxRetries": "3",
-	// 	 	"MinRetryBackoff": "8ms",
-	// 	 	"PoolFIFO": "true",
-	// 	}
-	//
-	// This is equivalent to providing query parameters in the URL:
-	//
-	// 	redis://localhost:6379?network=tcp&maxretries=3&minretrybackoff=8ms&poolfifo=true
-	Metadata map[string]string
 }

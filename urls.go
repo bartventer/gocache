@@ -12,7 +12,7 @@ import (
 // URLOpener is an interface for opening caches using URLs.
 type URLOpener interface {
 	// OpenCacheURL opens a cache using a URL and options.
-	OpenCacheURL(ctx context.Context, u *url.URL, options *Options) (Cache, error)
+	OpenCacheURL(ctx context.Context, u *url.URL) (Cache, error)
 }
 
 // urlMux is a multiplexer for cache schemes.
@@ -35,9 +35,9 @@ func (m *urlMux) RegisterCache(scheme string, opener URLOpener) {
 	m.schemes[scheme] = opener
 }
 
-// OpenCache opens a cache using a URL string and options.
+// OpenCache opens a cache for the provided URL string.
 // It returns an error if the URL cannot be parsed, or if no URLOpener is registered for the URL's scheme.
-func (m *urlMux) OpenCache(ctx context.Context, urlstr string, options *Options) (Cache, error) {
+func (m *urlMux) OpenCache(ctx context.Context, urlstr string) (Cache, error) {
 	u, err := url.Parse(urlstr)
 	if err != nil {
 		return nil, err
@@ -48,8 +48,7 @@ func (m *urlMux) OpenCache(ctx context.Context, urlstr string, options *Options)
 	if !ok {
 		return nil, gcerrors.New(errors.New("no registered opener for scheme: " + u.Scheme))
 	}
-	options.Revise()
-	return opener.OpenCacheURL(ctx, u, options)
+	return opener.OpenCacheURL(ctx, u)
 }
 
 var defaultURLMux = new(urlMux)
@@ -60,8 +59,8 @@ func RegisterCache(scheme string, opener URLOpener) {
 	defaultURLMux.RegisterCache(scheme, opener)
 }
 
-// OpenCache opens a [Cache] using a URL string and options.
+// OpenCache opens a [Cache] for the provided URL string.
 // It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the URL's scheme.
-func OpenCache(ctx context.Context, urlstr string, options *Options) (Cache, error) {
-	return defaultURLMux.OpenCache(ctx, urlstr, options)
+func OpenCache(ctx context.Context, urlstr string) (Cache, error) {
+	return defaultURLMux.OpenCache(ctx, urlstr)
 }
