@@ -30,7 +30,7 @@ func TestMemcacheCache_OpenCacheURL(t *testing.T) {
 	u, err := url.Parse("memcache://" + defaultAddr)
 	require.NoError(t, err)
 
-	_, err = m.OpenCacheURL(context.Background(), u, &cache.Options{})
+	_, err = m.OpenCacheURL(context.Background(), u)
 	require.NoError(t, err)
 	assert.NotNil(t, m.client)
 }
@@ -38,9 +38,10 @@ func TestMemcacheCache_OpenCacheURL(t *testing.T) {
 func TestMemcacheCache_New(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	config := cache.Config{}
 
-	m := New(ctx, &config, defaultAddr)
+	m := New(ctx, &Options{
+		Addrs: []string{defaultAddr},
+	})
 	require.NotNil(t, m)
 	assert.NotNil(t, m.client)
 }
@@ -91,7 +92,7 @@ func setupCache(t *testing.T) *memcacheCache {
 	if err != nil {
 		t.Fatalf("Failed to ping Memcached container: %v", err)
 	}
-	return &memcacheCache{client: client, config: &cache.Config{CountLimit: 100}}
+	return &memcacheCache{client: client}
 }
 
 func TestMemcacheCache_MalformedKey(t *testing.T) {

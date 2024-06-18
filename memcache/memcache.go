@@ -83,14 +83,12 @@ func init() { //nolint:gochecknoinits // This is the entry point of the package.
 type memcacheCache struct {
 	once   sync.Once        // once ensures that the cache is initialized only once.
 	client *memcache.Client // client is the Memcache client.
-	config *cache.Config    // config is the cache configuration.
 }
 
 // New returns a new Memcache cache implementation.
-func New(ctx context.Context, config *cache.Config, server ...string) *memcacheCache {
-	config.Revise()
+func New(ctx context.Context, opts *Options) *memcacheCache {
 	m := &memcacheCache{}
-	m.init(ctx, config, server...)
+	m.init(ctx, opts)
 	return m
 }
 
@@ -98,16 +96,18 @@ func New(ctx context.Context, config *cache.Config, server ...string) *memcacheC
 var _ cache.Cache = &memcacheCache{}
 
 // OpenCacheURL implements cache.URLOpener.
-func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
+func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
 	addrs := strings.Split(u.Host, ",")
-	m.init(ctx, &options.Config, addrs...)
+	m.init(ctx, &Options{Addrs: addrs})
 	return m, nil
 }
 
-func (m *memcacheCache) init(_ context.Context, config *cache.Config, server ...string) {
+func (m *memcacheCache) init(_ context.Context, opts *Options) {
 	m.once.Do(func() {
-		m.config = config
-		m.client = memcache.New(server...)
+		if opts == nil {
+			opts = &Options{}
+		}
+		m.client = memcache.New(opts.Addrs...)
 	})
 }
 
