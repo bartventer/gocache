@@ -26,7 +26,7 @@ Example via generic cache interface:
 	func main() {
 	    ctx := context.Background()
 	    urlStr := "memcache://localhost:11211"
-	    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
+	    c, err := cache.OpenCache(ctx, urlStr)
 	    if err != nil {
 	        log.Fatalf("Failed to initialize cache: %v", err)
 	    }
@@ -46,7 +46,9 @@ Example via [memcache.New] constructor:
 
 	func main() {
 	    ctx := context.Background()
-	    c := memcache.New(ctx, cache.Config{}, "localhost:11211")
+	    c := memcache.New(ctx, &memcache.Options{
+			Addrs: []string{"localhost:11211"},
+		})
 	    // ... use c with the cache.Cache interface
 	}
 
