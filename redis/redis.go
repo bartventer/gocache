@@ -15,9 +15,8 @@ Query parameters can be used to configure the Redis Client options. The keys of 
 parameters should correspond to the case-insensitive field names of [redis.Options].
 However, not all options can be set as query parameters. The following options are excluded:
 
-  - [redis.Options].Addr
+  - [redis.Options.Addr]
   - Any option that is a function
-  - Any options defined in [cache.Options]
 
 # Usage
 
@@ -35,7 +34,7 @@ Example via generic cache interface:
 	func main() {
 	    ctx := context.Background()
 	    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000ms"
-	    c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
+	    c, err := cache.OpenCache(ctx, urlStr)
 	    if err != nil {
 	        log.Fatalf("Failed to initialize cache: %v", err)
 	    }
@@ -56,8 +55,8 @@ Example via [redis.New] constructor:
 
 	func main() {
 	    ctx := context.Background()
-	    c := redis.New(ctx, cache.Config{}, redis.Options{
-	        Addr: "localhost:7000",
+	    c := redis.New(ctx, &redis.Options{
+	        Addr: "localhost:6379",
 	    })
 	    // ... use c with the cache.Cache interface
 	}
@@ -88,14 +87,16 @@ func init() { //nolint:gochecknoinits // This is the entry point of the package.
 type redisCache struct {
 	once   sync.Once     // once ensures that the cache is initialized only once.
 	client *redis.Client // client is the Redis client.
-	config *cache.Config // config is the cache configuration.
+	config *Config       // config is the cache configuration.
 }
 
 // New returns a new Redis cache implementation.
-func New(ctx context.Context, config *cache.Config, options redis.Options) *redisCache {
-	config.Revise()
+func New(ctx context.Context, opts *Options) *redisCache {
 	r := &redisCache{}
-	r.init(ctx, config, options)
+	if opts == nil {
+		opts = &Options{}
+	}
+	r.init(ctx, opts.Config, &opts.Options)
 	return r
 }
 
@@ -103,25 +104,23 @@ func New(ctx context.Context, config *cache.Config, options redis.Options) *redi
 var _ cache.Cache = &redisCache{}
 
 // OpenCacheURL implements cache.URLOpener.
-func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
-	// Parse the URL into Redis options
-	clusterOpts, err := optionsFromURL(u, options.Metadata)
+func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
+	opts, err := optionsFromURL(u)
 	if err != nil {
-		return nil, err
+		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error parsing URL: %w", err))
 	}
-	// Set configured options
-	clusterOpts.TLSConfig = options.TLSConfig
-	clusterOpts.CredentialsProviderContext = options.CredentialsProvider
-
-	// Initialize the Redis client
-	r.init(ctx, &options.Config, clusterOpts)
+	r.init(ctx, opts.Config, &opts.Options)
 	return r, nil
 }
 
-func (r *redisCache) init(_ context.Context, config *cache.Config, options redis.Options) {
+func (r *redisCache) init(_ context.Context, config *Config, options *redis.Options) {
 	r.once.Do(func() {
+		if config == nil {
+			config = &Config{}
+		}
+		config.revise()
 		r.config = config
-		r.client = redis.NewClient(&options)
+		r.client = redis.NewClient(options)
 	})
 }
 

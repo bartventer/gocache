@@ -2,10 +2,10 @@ package redis
 
 import (
 	"net/url"
-	"strings"
+	"time"
 
+	"github.com/bartventer/gocache/internal/urlparser"
 	"github.com/mitchellh/mapstructure"
-	"github.com/redis/go-redis/v9"
 )
 
 // paramKeyBlacklist is a list of keys that should not be set on the Redis options.
@@ -16,7 +16,6 @@ var paramKeyBlacklist = map[string]bool{
 	"onconnect":                  true,
 	"credentialsprovider":        true,
 	"credentialsprovidercontext": true,
-	"tlsconfig":                  true,
 }
 
 // optionsFromURL parses a [url.URL] into [redis.Options].
@@ -26,7 +25,7 @@ var paramKeyBlacklist = map[string]bool{
 //	redis://host:port
 //
 // All redis client options can be set as query parameters, except for the following:
-//   - Addr
+//   - [redis.Options.Addr]
 //   - Any option that is a function
 //   - Any options defined in cache.Options
 //
@@ -36,34 +35,22 @@ var paramKeyBlacklist = map[string]bool{
 //
 // This will return a redis.Options with the Addr set to "localhost:6379",
 // MaxRetries set to 5, and MinRetryBackoff set to 512ms.
-func optionsFromURL(u *url.URL, paramOverrides map[string]string) (redis.Options, error) {
-	opts := redis.Options{}
+func optionsFromURL(u *url.URL) (Options, error) {
+	var opts Options
 
 	// Parse the query parameters into a map
-	queryParams := make(map[string]string)
-	for key, values := range u.Query() {
-		if len(values) > 0 {
-			queryParams[key] = values[0]
-		}
-	}
-	// Merge the extra parameters
-	for key, value := range paramOverrides {
-		queryParams[key] = value
-	}
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		WeaklyTypedInput: true,
-		Result:           &opts,
-		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
-		MatchName: func(mapKey, fieldName string) bool {
-			return strings.EqualFold(mapKey, fieldName) && !paramKeyBlacklist[mapKey]
-		},
-	})
-	if err != nil {
-		return redis.Options{}, err
-	}
-	err = decoder.Decode(queryParams)
-	if err != nil {
-		return redis.Options{}, err
+	parser := urlparser.NewURLParser(
+		mapstructure.StringToTimeDurationHookFunc(),
+		mapstructure.StringToSliceHookFunc(","),
+		mapstructure.StringToTimeHookFunc(time.RFC3339),
+		mapstructure.StringToIPNetHookFunc(),
+		mapstructure.StringToIPHookFunc(),
+		mapstructure.RecursiveStructToMapHookFunc(),
+		urlparser.StringToTLSConfigHookFunc(),
+		urlparser.StringToCertificateHookFunc(),
+	)
+	if err := parser.OptionsFromURL(u, &opts, paramKeyBlacklist); err != nil {
+		return Options{}, err
 	}
 
 	// Set the Addr from the URL

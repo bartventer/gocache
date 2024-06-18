@@ -29,7 +29,7 @@ func TestRedisCache_OpenCacheURL(t *testing.T) {
 	u, err := url.Parse("redis://" + defaultAddr + "?maxretries=5&minretrybackoff=1000ms")
 	require.NoError(t, err)
 
-	_, err = r.OpenCacheURL(context.Background(), u, &cache.Options{})
+	_, err = r.OpenCacheURL(context.Background(), u)
 	require.NoError(t, err)
 	assert.NotNil(t, r.client)
 }
@@ -37,12 +37,11 @@ func TestRedisCache_OpenCacheURL(t *testing.T) {
 func TestRedisCache_New(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	config := cache.Config{}
-	options := redis.Options{
-		Addr: defaultAddr,
-	}
-
-	r := New(ctx, &config, options)
+	r := New(ctx, &Options{
+		Options: redis.Options{
+			Addr: defaultAddr,
+		},
+	})
 	require.NotNil(t, r)
 	assert.NotNil(t, r.client)
 }
@@ -97,7 +96,7 @@ func setupCache(t *testing.T) *redisCache {
 	if err != nil {
 		t.Fatalf("Failed to ping Redis container: %v", err)
 	}
-	return &redisCache{client: client, config: &cache.Config{CountLimit: 100}}
+	return &redisCache{client: client, config: &Config{CountLimit: 100}}
 }
 
 type harness struct {

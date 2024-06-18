@@ -12,54 +12,54 @@ import (
 
 func Test_optionsFromURL(t *testing.T) {
 	type args struct {
-		u              *url.URL
-		paramOverrides map[string]string
+		u *url.URL
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    redis.Options
+		want    Options
 		wantErr bool
 	}{
 		{
 			name: "parses valid URL",
 			args: args{
-				u:              mustParseURL("redis://localhost:6379?maxretries=5&minretrybackoff=512ms"),
-				paramOverrides: map[string]string{"db": "0"},
+				u: mustParseURL("redis://localhost:6379?maxretries=5&minretrybackoff=512ms"),
 			},
-			want: redis.Options{
-				Addr:            "localhost:6379",
-				MaxRetries:      5,
-				MinRetryBackoff: 512 * time.Millisecond,
-				DB:              0,
+			want: Options{
+				Options: redis.Options{
+					Addr:            "localhost:6379",
+					MaxRetries:      5,
+					MinRetryBackoff: 512 * time.Millisecond,
+					DB:              0,
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "ignores blacklisted parameters",
 			args: args{
-				u:              mustParseURL("redis://localhost:6379?addr=someotherhost:6379"),
-				paramOverrides: map[string]string{"newclient": "true"},
+				u: mustParseURL("redis://localhost:6379?addr=someotherhost:6379"),
 			},
-			want: redis.Options{
-				Addr: "localhost:6379",
+			want: Options{
+				Options: redis.Options{
+					Addr: "localhost:6379",
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "returns error for invalid parameters",
 			args: args{
-				u:              mustParseURL("redis://localhost:6379?maxretries=invalid"),
-				paramOverrides: map[string]string{},
+				u: mustParseURL("redis://localhost:6379?maxretries=invalid"),
 			},
-			want:    redis.Options{},
+			want:    Options{},
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := optionsFromURL(tt.args.u, tt.args.paramOverrides)
+			got, err := optionsFromURL(tt.args.u)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("optionsFromURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
