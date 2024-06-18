@@ -12,11 +12,7 @@ const (
 )
 
 type (
-	// Config is a struct that holds configuration options for the cache package.
-	//
-	// # Compatibility
-	//
-	// These options are recognized by all cache drivers.
+	// Config is a configuration for [gocache] to customize the Redis cache.
 	Config struct {
 		// CountLimit is the hint to the SCAN command about the amount of work to be done at each call.
 		// The default value is 10.
