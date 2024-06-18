@@ -12,54 +12,56 @@ import (
 
 func Test_optionsFromURL(t *testing.T) {
 	type args struct {
-		u              *url.URL
-		paramOverrides map[string]string
+		u *url.URL
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    redis.ClusterOptions
+		want    Options
 		wantErr bool
 	}{
 		{
 			name: "parses valid URL",
 			args: args{
-				u:              mustParseURL("rediscluster://localhost:6379,localhost:6380?maxretries=5&minretrybackoff=512ms"),
-				paramOverrides: map[string]string{"maxredirects": "5"},
+				u: mustParseURL("rediscluster://localhost:6379,localhost:6380?maxretries=5&minretrybackoff=512ms&maxredirects=5"),
 			},
-			want: redis.ClusterOptions{
-				Addrs:           []string{"localhost:6379", "localhost:6380"},
-				MaxRetries:      5,
-				MinRetryBackoff: 512 * time.Millisecond,
-				MaxRedirects:    5,
+			want: Options{
+				ClusterOptions: redis.ClusterOptions{
+					Addrs:           []string{"localhost:6379", "localhost:6380"},
+					MaxRetries:      5,
+					MinRetryBackoff: 512 * time.Millisecond,
+					MaxRedirects:    5,
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "ignores blacklisted parameters",
 			args: args{
-				u:              mustParseURL("rediscluster://localhost:6379,localhost:6380?addrs=someotherhost:6379"),
-				paramOverrides: map[string]string{"newclient": "true"},
+				u: mustParseURL("rediscluster://localhost:6379,localhost:6380?addrs=someotherhost:6379"),
 			},
-			want: redis.ClusterOptions{
-				Addrs: []string{"localhost:6379", "localhost:6380"},
+			want: Options{
+				ClusterOptions: redis.ClusterOptions{
+					Addrs: []string{"localhost:6379", "localhost:6380"},
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "returns error for invalid parameters",
 			args: args{
-				u:              mustParseURL("rediscluster://localhost:6379,localhost:6380?maxretries=invalid"),
-				paramOverrides: map[string]string{},
+				u: mustParseURL("rediscluster://localhost:6379,localhost:6380?maxretries=invalid"),
 			},
-			want:    redis.ClusterOptions{},
+			want: Options{
+				ClusterOptions: redis.ClusterOptions{},
+			},
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := optionsFromURL(tt.args.u, tt.args.paramOverrides)
+			got, err := optionsFromURL(tt.args.u)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("optionsFromURL() error = %v, wantErr %v", err, tt.wantErr)
 				return

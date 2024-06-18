@@ -33,7 +33,7 @@ func TestRedisCache_OpenCacheURL(t *testing.T) {
 	u, err := url.Parse("rediscluster://localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005?maxretries=5&minretrybackoff=1000ms")
 	require.NoError(t, err)
 
-	_, err = r.OpenCacheURL(context.Background(), u, &cache.Options{})
+	_, err = r.OpenCacheURL(context.Background(), u)
 	require.NoError(t, err)
 	assert.NotNil(t, r.client)
 }
@@ -41,18 +41,18 @@ func TestRedisCache_OpenCacheURL(t *testing.T) {
 func TestRedisCache_New(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	config := cache.Config{}
-	options := redis.ClusterOptions{
-		Addrs: []string{
-			"localhost:7000",
-			"localhost:7001",
-			"localhost:7002",
-			"localhost:7003",
-			"localhost:7004",
-			"localhost:7005",
+	r := New(ctx, &Options{
+		ClusterOptions: redis.ClusterOptions{
+			Addrs: []string{
+				"localhost:7000",
+				"localhost:7001",
+				"localhost:7002",
+				"localhost:7003",
+				"localhost:7004",
+				"localhost:7005",
+			},
 		},
-	}
-	r := New(ctx, &config, options)
+	})
 	require.NotNil(t, r)
 	assert.NotNil(t, r.client)
 }
@@ -63,7 +63,7 @@ func setupCache(t *testing.T) *redisClusterCache {
 	// Create a new Redis cluster container
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
-		// Switch to latest once this issue is resolved: https://github.com/Grokzen/docker-redis-cluster/issues/162
+		// TODO: Switch to latest once this issue is resolved: https://github.com/Grokzen/docker-redis-cluster/issues/162
 		Image:        "grokzen/redis-cluster:7.0.10",
 		ExposedPorts: exposedPorts,
 		ConfigModifier: func(c *container.Config) {
@@ -113,7 +113,7 @@ func setupCache(t *testing.T) *redisClusterCache {
 	if err != nil {
 		t.Fatalf("Failed to ping Redis cluster container: %v", err)
 	}
-	return &redisClusterCache{client: client, config: &cache.Config{CountLimit: 100}}
+	return &redisClusterCache{client: client, config: &Config{CountLimit: 100}}
 }
 
 type harness struct {

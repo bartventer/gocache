@@ -3,9 +3,10 @@ package rediscluster
 import (
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/bartventer/gocache/internal/urlparser"
 	"github.com/mitchellh/mapstructure"
-	"github.com/redis/go-redis/v9"
 )
 
 // paramKeyBlacklist is a list of keys that should not be set on the Redis Cluster options.
@@ -17,7 +18,6 @@ var paramKeyBlacklist = map[string]bool{
 	"onconnect":                  true,
 	"credentialsprovider":        true,
 	"credentialsprovidercontext": true,
-	"tlsconfig":                  true,
 }
 
 // optionsFromURL parses a [url.URL] into [redis.ClusterOptions].
@@ -37,38 +37,26 @@ var paramKeyBlacklist = map[string]bool{
 //
 // This will return a redis.ClusterOptions with the Addrs set to ["localhost:6379", "localhost:6380"],
 // MaxRetries set to 5, and MinRetryBackoff set to 1000ms.
-func optionsFromURL(u *url.URL, paramOverrides map[string]string) (redis.ClusterOptions, error) {
-	clusterOpts := redis.ClusterOptions{}
+func optionsFromURL(u *url.URL) (Options, error) {
+	var opts Options
 
 	// Parse the query parameters into a map
-	queryParams := make(map[string]string)
-	for key, values := range u.Query() {
-		if len(values) > 0 {
-			queryParams[key] = values[0]
-		}
-	}
-	// Merge the extra parameters
-	for key, value := range paramOverrides {
-		queryParams[key] = value
-	}
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		WeaklyTypedInput: true,
-		Result:           &clusterOpts,
-		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
-		MatchName: func(mapKey, fieldName string) bool {
-			return strings.EqualFold(mapKey, fieldName) && !paramKeyBlacklist[mapKey]
-		},
-	})
-	if err != nil {
-		return redis.ClusterOptions{}, err
-	}
-	err = decoder.Decode(queryParams)
-	if err != nil {
-		return redis.ClusterOptions{}, err
+	parser := urlparser.NewURLParser(
+		mapstructure.StringToTimeDurationHookFunc(),
+		mapstructure.StringToSliceHookFunc(","),
+		mapstructure.StringToTimeHookFunc(time.RFC3339),
+		mapstructure.StringToIPNetHookFunc(),
+		mapstructure.StringToIPHookFunc(),
+		mapstructure.RecursiveStructToMapHookFunc(),
+		urlparser.StringToTLSConfigHookFunc(),
+		urlparser.StringToCertificateHookFunc(),
+	)
+	if err := parser.OptionsFromURL(u, &opts, paramKeyBlacklist); err != nil {
+		return Options{}, err
 	}
 
 	// Set the Addrs from the URL
-	clusterOpts.Addrs = strings.Split(u.Host, ",")
+	opts.Addrs = strings.Split(u.Host, ",")
 
-	return clusterOpts, nil
+	return opts, nil
 }

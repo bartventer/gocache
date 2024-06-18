@@ -16,9 +16,8 @@ Query parameters can be used to configure the Redis Cluster options. The keys of
 parameters should correspond to the case-insensitive field names of [redis.ClusterOptions].
 However, not all options can be set as query parameters. The following options are excluded:
 
-  - [redis.ClusterOptions].Addrs
+  - [redis.ClusterOptions.Addrs]
   - Any option that is a function
-  - Any options defined in [cache.Options]
 
 # Usage
 
@@ -36,7 +35,7 @@ Example via generic cache interface:
 	func main() {
 		ctx := context.Background()
 		urlStr := "rediscluster://localhost:7000,localhost:7001,localhost:7002?maxretries=5&minretrybackoff=1000"
-		c, err := cache.OpenCache(ctx, urlStr, cache.Options{})
+		c, err := cache.OpenCache(ctx, urlStr)
 		if err != nil {
 			log.Fatalf("Failed to initialize cache: %v", err)
 		}
@@ -57,7 +56,7 @@ Example via [rediscluster.New] constructor:
 
 	func main() {
 		ctx := context.Background()
-		c := rediscluster.New(ctx, cache.Config{}, redis.ClusterOptions{
+		c := rediscluster.New(ctx, &redis.ClusterOptions{
 			Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
 		})
 		// ... use c with the cache.Cache interface
@@ -89,14 +88,16 @@ func init() { //nolint:gochecknoinits // This is the entry point of the package.
 type redisClusterCache struct {
 	once   sync.Once            // once ensures that the cache is initialized only once.
 	client *redis.ClusterClient // client is the Redis Cluster client.
-	config *cache.Config        // config is the cache configuration.
+	config *Config              // config is the cache configuration.
 }
 
 // New returns a new Redis Cluster cache implementation.
-func New(ctx context.Context, config *cache.Config, options redis.ClusterOptions) *redisClusterCache {
-	config.Revise()
+func New(ctx context.Context, opts *Options) *redisClusterCache {
 	r := &redisClusterCache{}
-	r.init(ctx, config, options)
+	if opts == nil {
+		opts = &Options{}
+	}
+	r.init(ctx, opts.Config, &opts.ClusterOptions)
 	return r
 }
 
@@ -104,25 +105,23 @@ func New(ctx context.Context, config *cache.Config, options redis.ClusterOptions
 var _ cache.Cache = &redisClusterCache{}
 
 // OptionsFromURL implements cache.URLOpener.
-func (r *redisClusterCache) OpenCacheURL(ctx context.Context, u *url.URL, options *cache.Options) (cache.Cache, error) {
-	// Parse the URL into Redis Cluster options
-	clusterOpts, err := optionsFromURL(u, options.Metadata)
+func (r *redisClusterCache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
+	opts, err := optionsFromURL(u)
 	if err != nil {
-		return nil, err
+		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error parsing URL: %w", err))
 	}
-	// Set configured options
-	clusterOpts.TLSConfig = options.TLSConfig
-	clusterOpts.CredentialsProviderContext = options.CredentialsProvider
-
-	// Initialize the Redis Cluster client
-	r.init(ctx, &options.Config, clusterOpts)
+	r.init(ctx, opts.Config, &opts.ClusterOptions)
 	return r, nil
 }
 
-func (r *redisClusterCache) init(_ context.Context, config *cache.Config, options redis.ClusterOptions) {
+func (r *redisClusterCache) init(_ context.Context, config *Config, options *redis.ClusterOptions) {
 	r.once.Do(func() {
+		if config == nil {
+			config = &Config{}
+		}
+		config.revise()
 		r.config = config
-		r.client = redis.NewClusterClient(&options)
+		r.client = redis.NewClusterClient(options)
 	})
 }
 
