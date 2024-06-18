@@ -9,7 +9,7 @@ replace github.com/bartventer/gocache => ../
 replace github.com/docker/docker => github.com/docker/docker v26.1.4+incompatible
 
 require (
-	github.com/bartventer/gocache v1.7.0
+	github.com/bartventer/gocache v1.9.0
 	github.com/docker/docker v27.0.0+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/mitchellh/mapstructure v1.5.0

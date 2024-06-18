@@ -5,7 +5,7 @@ go 1.22.4
 replace github.com/bartventer/gocache => ../
 
 require (
-	github.com/bartventer/gocache v1.7.0
+	github.com/bartventer/gocache v1.9.0
 	github.com/stretchr/testify v1.9.0
 )
 
