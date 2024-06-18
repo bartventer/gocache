@@ -50,9 +50,10 @@ func TestStore(t *testing.T) {
 		s := newStore()
 		s.Set("key1", item{Value: []byte("value1"), Expiry: time.Now().Add(20 * time.Minute)})
 		s.Set("key2", item{Value: []byte("value2"), Expiry: time.Now().Add(10 * time.Minute)})
+		s.Set("key3", item{Value: []byte("value3"), NoExpiry: true})
 		items := s.KeyItemsSortedByExpiry()
-		if len(items) != 2 || items[0].Key != "key2" || items[1].Key != "key1" {
-			t.Errorf("KeyItemsSortedByExpiry failed. Expected [key2, key1], got [%v, %v]", items[0].Key, items[1].Key)
+		if len(items) != 3 || items[0].Key != "key2" || items[1].Key != "key1" || items[2].Key != "key3" {
+			t.Errorf("KeyItemsSortedByExpiry failed. Expected [key2, key1, key3], got [%v, %v, %v]", items[0].Key, items[1].Key, items[2].Key)
 		}
 	})
 }

@@ -208,16 +208,16 @@ func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.Mod)
 // Set implements cache.Cache.
 func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
-	return r.set(key, value, r.opts.DefaultTTL)
+	return r.set(key, value, r.opts.DefaultTTL, true)
 }
 
 // SetWithExpiry implements cache.Cache.
 func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
-	return r.set(key, value, expiry)
+	return r.set(key, value, expiry, false)
 }
 
-func (r *ramcache) set(key string, value interface{}, expiry time.Duration) error {
+func (r *ramcache) set(key string, value interface{}, expiry time.Duration, noExpiry bool) error {
 	var data []byte
 	switch v := value.(type) {
 	case string:
@@ -239,7 +239,7 @@ func (r *ramcache) set(key string, value interface{}, expiry time.Duration) erro
 	default:
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
 	}
-	r.store.Set(key, item{Value: data, Expiry: time.Now().Add(expiry)})
+	r.store.Set(key, item{Value: data, Expiry: time.Now().Add(expiry), NoExpiry: noExpiry})
 	return nil
 }
 
