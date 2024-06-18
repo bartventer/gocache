@@ -34,7 +34,7 @@ Example via generic cache interface:
 
 	func main() {
 		ctx := context.Background()
-		urlStr := "rediscluster://localhost:7000,localhost:7001,localhost:7002?maxretries=5&minretrybackoff=1000"
+		urlStr := "rediscluster://localhost:7000,localhost:7001,localhost:7002?maxretries=5&minretrybackoff=1000ms"
 		c, err := cache.OpenCache(ctx, urlStr)
 		if err != nil {
 			log.Fatalf("Failed to initialize cache: %v", err)
@@ -49,15 +49,17 @@ Example via [rediscluster.New] constructor:
 		"log"
 		"net/url"
 
-		"github.com/bartventer/gocache"
 		"github.com/bartventer/gocache/rediscluster"
-		"github.com/redis/go-redis/v9"
 	)
 
 	func main() {
 		ctx := context.Background()
-		c := rediscluster.New(ctx, &redis.ClusterOptions{
-			Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
+		c := rediscluster.New(ctx, &rediscluster.Options{
+			ClusterOptions: rediscluster.ClusterOptions{
+				Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
+				MaxRetries: 5,
+				MinRetryBackoff: 1000 * time.Millisecond,
+			},
 		})
 		// ... use c with the cache.Cache interface
 	}
