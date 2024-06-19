@@ -20,3 +20,12 @@ func TestNewWithScheme(t *testing.T) {
 		t.Errorf("Expected 'gocache/myscheme: test error', got '%s'", gcErr.Error())
 	}
 }
+
+func TestUnwrap(t *testing.T) {
+	err := errors.New("test error")
+	gcErr := New(err)
+	unwrappedErr := gcErr.Unwrap()
+	if unwrappedErr != err {
+		t.Errorf("Expected unwrapped error to be '%v', got '%v'", err, unwrappedErr)
+	}
+}

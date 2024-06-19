@@ -18,6 +18,11 @@ func (e *Error) Error() string {
 	}
 }
 
+// Unwrap returns the original error.
+func (e *Error) Unwrap() error {
+	return e.err
+}
+
 // NewWithScheme returns a new error with the given scheme and error.
 func NewWithScheme(scheme string, err error) *Error {
 	return &Error{scheme: scheme, err: err}
