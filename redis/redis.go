@@ -8,19 +8,13 @@ The URL should have the following format:
 
 	redis://<host>:<port>[?query]
 
-The <host>:<port> pair corresponds to the Redis Client node. The [?query] part,
-though optional, can be used for additional configuration through query parameters.
+The <host>:<port> pair corresponds to the Redis Client node.
 
-Query parameters can be used to configure the Redis Client options. The keys of the query
-parameters should correspond to the case-insensitive field names of [redis.Options].
-However, not all options can be set as query parameters. The following options are excluded:
-
-  - [redis.Options.Addr]
-  - Any option that is a function
+The optional query part can be used to configure the Redis Client options through
+query parameters. The keys of the query parameters should match the case-insensitive
+field names of the [Options] structure (excluding [redis.Options.Addr]).
 
 # Usage
-
-Example via generic cache interface:
 
 	import (
 	    "context"
@@ -40,7 +34,7 @@ Example via generic cache interface:
 	    // ... use c with the cache.Cache interface
 	}
 
-Example via [redis.New] constructor:
+You can create a Redis cache with [New]:
 
 	import (
 	    "context"

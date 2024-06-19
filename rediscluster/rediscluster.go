@@ -9,19 +9,13 @@ The URL should have the following format:
 	rediscluster://<host1>:<port1>,<host2>:<port2>,...,<hostN>:<portN>[?query]
 
 Each <host>:<port> pair corresponds to a Redis Cluster node. You can specify any number
-of nodes, each separated by a comma. The [?query] part, though optional, can be used
-for additional configuration through query parameters.
+of nodes, each separated by a comma.
 
-Query parameters can be used to configure the Redis Cluster options. The keys of the query
-parameters should correspond to the case-insensitive field names of [redis.ClusterOptions].
-However, not all options can be set as query parameters. The following options are excluded:
-
-  - [redis.ClusterOptions.Addrs]
-  - Any option that is a function
+The optional query part can be used to configure the Redis Cluster options through
+query parameters. The keys of the query parameters should match the case-insensitive
+field names of the [Options] structure (excluding [redis.ClusterOptions.Addrs]).
 
 # Usage
-
-Example via generic cache interface:
 
 	import (
 		"context"
@@ -42,7 +36,7 @@ Example via generic cache interface:
 		// ... use c with the cache.Cache interface
 	}
 
-Example via [rediscluster.New] constructor:
+You can create a Redis Cluster cache with [New]:
 
 	import (
 		"context"

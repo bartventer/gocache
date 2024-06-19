@@ -12,8 +12,6 @@ Each <host>:<port> pair corresponds to the Memcache Client node.
 
 # Usage
 
-Example via generic cache interface:
-
 	import (
 	    "context"
 	    "log"
@@ -33,7 +31,7 @@ Example via generic cache interface:
 	    // ... use c with the cache.Cache interface
 	}
 
-Example via [memcache.New] constructor:
+You can create a Memcache cache with [New]:
 
 	import (
 	    "context"

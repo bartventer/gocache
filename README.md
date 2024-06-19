@@ -8,7 +8,7 @@
 ![GitHub issues](https://img.shields.io/github/issues/bartventer/gocache)
 [![License](https://img.shields.io/github/license/bartventer/gocache.svg)](LICENSE)
 
-The `Cache` package provides a unified interface for managing caches in Go. It allows developers to switch between various cache implementations (such as Redis, Memcache, etc.) by simply altering the URL scheme.
+The `Cache` package in Go provides a unified, portable API for managing caches, enabling developers to write cache-related code once and transition seamlessly between different cache drivers with minimal reconfiguration. This approach simplifies both local testing and deployment to different environments.
 
 ## Installation
 
@@ -29,11 +29,11 @@ _Pull requests for additional cache implementations are welcome!_
 
 ## Usage
 
-To use a cache implementation, import the relevant driver package and use the `OpenCache` function to create a new cache. The cache package will automatically use the correct cache implementation based on the URL scheme.
+To use a cache implementation, import the relevant driver package and use the `OpenCache` function to create a new cache. The cache package will automatically use the correct cache driver based on the URL scheme. Each driver also provides a constructor function for manual initialization.
 
 ### Redis
 
-The [redis](https://pkg.go.dev/github.com/bartventer/gocache/redis) package provides a [Redis](https://redis.io) cache implementation using the [go-redis/redis](https://github.com/go-redis/redis) client.
+The [redis](https://pkg.go.dev/github.com/bartventer/gocache/redis) package provides a [Redis](https://redis.io) cache driver using the [go-redis/redis](https://github.com/go-redis/redis) client.
 
 ```go
 import (
@@ -46,7 +46,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1000ms"
+    urlStr := "redis://localhost:7000?maxretries=5&minretrybackoff=1s"
     c, err := cache.OpenCache(ctx, urlStr)
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
@@ -56,6 +56,8 @@ func main() {
 ```
 
 #### Redis Constructor
+
+You can create a Redis cache with [redis.New](https://pkg.go.dev/github.com/bartventer/gocache/redis#New):
 
 ```go
 import (
@@ -70,7 +72,7 @@ func main() {
         RedisOptions: &redis.RedisOptions{
             Addr: "localhost:7000",
             MaxRetries: 5,
-            MinRetryBackoff: 1000 * time.Millisecond,
+            MinRetryBackoff: 1 * time.Second,
         },
     })
     // ... use c with the cache.Cache interface
@@ -79,7 +81,7 @@ func main() {
 
 ### Redis Cluster
 
-The [rediscluster](https://pkg.go.dev/github.com/bartventer/gocache/rediscluster) package provides a [Redis Cluster](https://redis.io/topics/cluster-spec) cache implementation using the [go-redis/redis](https://github.com/go-redis/redis) client.
+The [rediscluster](https://pkg.go.dev/github.com/bartventer/gocache/rediscluster) package provides a [Redis Cluster](https://redis.io/topics/cluster-spec) cache driver using the [go-redis/redis](https://github.com/go-redis/redis) client.
 
 ```go
 import (
@@ -92,7 +94,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    urlStr := "rediscluster://localhost:7000,localhost:7001,localhost:7002?maxretries=5&minretrybackoff=1000"
+    urlStr := "rediscluster://localhost:7000,localhost:7001,localhost:7002?maxretries=5&minretrybackoff=1s"
     c, err := cache.OpenCache(ctx, urlStr)
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
@@ -102,6 +104,8 @@ func main() {
 ```
 
 #### Redis Cluster Constructor
+
+You can create a Redis Cluster cache with [rediscluster.New](https://pkg.go.dev/github.com/bartventer/gocache/rediscluster#New):
 
 ```go
 import (
@@ -116,7 +120,7 @@ func main() {
         ClusterOptions: &rediscluster.ClusterOptions{
             Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
             MaxRetries: 5,
-            MinRetryBackoff: 1000 * time.Millisecond,
+            MinRetryBackoff: 1 * time.Second,
         },
     })
     // ... use c with the cache.Cache interface
@@ -125,7 +129,7 @@ func main() {
 
 ### Memcache
 
-The [memcache](https://pkg.go.dev/github.com/bartventer/gocache/memcache) package provides a [Memcache](https://memcached.org) cache implementation using the [bradfitz/gomemcache](https://github.com/bradfitz/gomemcache) client.
+The [memcache](https://pkg.go.dev/github.com/bartventer/gocache/memcache) package provides a [Memcache](https://memcached.org) cache driver using the [bradfitz/gomemcache](https://github.com/bradfitz/gomemcache) client.
 
 ```go
 import (
@@ -149,6 +153,8 @@ func main() {
 
 #### Memcache Constructor
 
+You can create a Memcache cache with [memcache.New](https://pkg.go.dev/github.com/bartventer/gocache/memcache#New):
+
 ```go
 import (
     "context"
@@ -167,7 +173,7 @@ func main() {
 
 ### RAM Cache (in-memory)
 
-The [ramcache](https://pkg.go.dev/github.com/bartventer/gocache/ramcache) package provides an in-memory cache implementation using a map.
+The [ramcache](https://pkg.go.dev/github.com/bartventer/gocache/ramcache) package provides an in-memory cache driver using a map.
 
 ```go
 import (
@@ -180,7 +186,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    urlStr := "ramcache://?defaultttl=5m"
+    urlStr := "ramcache://?cleanupinterval=1m"
     c, err := cache.OpenCache(ctx, urlStr)
     if err != nil {
         log.Fatalf("Failed to initialize cache: %v", err)
@@ -190,6 +196,8 @@ func main() {
 ```
 
 #### RAM Cache Constructor
+
+You can create a RAM cache with [ramcache.New](https://pkg.go.dev/github.com/bartventer/gocache/ramcache#New):
 
 ```go
 import (
@@ -201,7 +209,7 @@ import (
 func main() {
     ctx := context.Background()
     c := ramcache.New(ctx, &ramcache.Options{
-        DefaultTTL: 5 * time.Minute,
+        CleanupInterval: 1 * time.Minute,
     })
     // ... use c with the cache.Cache interface
 }
