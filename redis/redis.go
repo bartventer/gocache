@@ -150,7 +150,7 @@ func (r *redisCache) Del(ctx context.Context, key string, modifiers ...keymod.Mo
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting key %s: %w", key, err))
 	}
 	if delCount == 0 {
-		return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found: %w", key, err)))
+		return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found", key)))
 	}
 	return nil
 }
