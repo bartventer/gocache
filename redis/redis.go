@@ -199,10 +199,10 @@ func (r *redisCache) Set(ctx context.Context, key string, value interface{}, mod
 	return r.client.Set(ctx, key, value, 0).Err()
 }
 
-// SetWithExpiry implements cache.Cache.
-func (r *redisCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+// SetWithTTL implements cache.Cache.
+func (r *redisCache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
-	return r.client.Set(ctx, key, value, expiry).Err()
+	return r.client.Set(ctx, key, value, ttl).Err()
 }
 
 // Close implements cache.Cache.

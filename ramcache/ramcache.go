@@ -214,13 +214,13 @@ func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modif
 	return r.set(key, value, 0)
 }
 
-// SetWithExpiry implements cache.Cache.
-func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
-	if err := cache.ValidateTTL(expiry); err != nil {
-		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("invalid expiry duration %q: %w", expiry, err))
+// SetWithTTL implements cache.Cache.
+func (r *ramcache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
+	if err := cache.ValidateTTL(ttl); err != nil {
+		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("invalid expiry duration %q: %w", ttl, err))
 	}
 	key = keymod.Modify(key, modifiers...)
-	return r.set(key, value, expiry)
+	return r.set(key, value, ttl)
 }
 
 func (r *ramcache) set(key string, value interface{}, expiry time.Duration) error {

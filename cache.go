@@ -21,7 +21,6 @@ to determine the cache implementation to use. The URL format is:
 The scheme is used to determine the cache implementation. The host and port are used
 to connect to the cache service. The optional query parameters can be used to configure
 the cache implementation. Each cache implementation supports different query parameters.
-Refer to the documentation of each cache implementation for more information.
 
 # Usage
 
@@ -80,8 +79,8 @@ type Cache interface {
 	// Set sets a key to a value in the cache.
 	Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error
 
-	// SetWithExpiry sets a key to a value in the cache with an expiry time.
-	SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error
+	// SetWithTTL sets a key to a value in the cache with a time-to-live (TTL).
+	SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error
 
 	// Exists checks if a key exists in the cache.
 	Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error)

@@ -107,16 +107,16 @@ func (r *MockCache) Set(ctx context.Context, key string, value interface{}, modi
 	return nil
 }
 
-// SetWithExpiry implements cache.Cache.
-func (r *MockCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+// SetWithTTL implements cache.Cache.
+func (r *MockCache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch v := value.(type) {
 	case string:
-		r.store[key] = Item{Value: []byte(v), Expiry: time.Now().Add(expiry)}
+		r.store[key] = Item{Value: []byte(v), Expiry: time.Now().Add(ttl)}
 	case []byte:
-		r.store[key] = Item{Value: v, Expiry: time.Now().Add(expiry)}
+		r.store[key] = Item{Value: v, Expiry: time.Now().Add(ttl)}
 	default:
 		return fmt.Errorf("unsupported value type: %T", v)
 	}

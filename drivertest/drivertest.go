@@ -48,7 +48,7 @@ func RunConformanceTests(t *testing.T, newHarness HarnessMaker) {
 	t.Helper()
 
 	t.Run("Set", func(t *testing.T) { withCache(t, newHarness, testSet) })
-	t.Run("SetWithExpiry", func(t *testing.T) { withCache(t, newHarness, testSetWithExpiry) })
+	t.Run("SetWithTTL", func(t *testing.T) { withCache(t, newHarness, testSetWithTTL) })
 	t.Run("Exists", func(t *testing.T) { withCache(t, newHarness, testExists) })
 	t.Run("Count", func(t *testing.T) { withCache(t, newHarness, testCount) })
 	t.Run("Get", func(t *testing.T) { withCache(t, newHarness, testGet) })
@@ -101,14 +101,14 @@ func testSet(t *testing.T, c cache.Cache, opts Options) {
 	assert.Equal(t, value, string(got))
 }
 
-// testSetWithExpiry tests the SetWithExpiry method of the cache.
-func testSetWithExpiry(t *testing.T, c cache.Cache, opts Options) {
+// testSetWithTTL tests the SetWithTTL method of the cache.
+func testSetWithTTL(t *testing.T, c cache.Cache, opts Options) {
 	t.Parallel()
 	key := uniqueKey(t)
 	value := "testValue"
-	expiry := 1 * time.Second
+	ttl := 1 * time.Second
 
-	err := c.SetWithExpiry(context.Background(), key, value, expiry)
+	err := c.SetWithTTL(context.Background(), key, value, ttl)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		c.Del(context.Background(), key)
@@ -119,7 +119,7 @@ func testSetWithExpiry(t *testing.T, c cache.Cache, opts Options) {
 	assert.Equal(t, value, string(got))
 
 	// Wait for the key to expire
-	time.Sleep(expiry)
+	time.Sleep(ttl)
 
 	_, err = c.Get(context.Background(), key)
 	require.Error(t, err)

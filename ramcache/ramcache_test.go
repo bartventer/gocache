@@ -82,11 +82,11 @@ func Test_ramcache_removeExpiredItems(t *testing.T) {
 	}
 }
 
-func TestSetWithExpiry_InvalidExpiry(t *testing.T) {
+func TestSetWithTTL_InvalidExpiry(t *testing.T) {
 	ctx := context.Background()
 	r := New(ctx, &Options{})
 
-	err := r.SetWithExpiry(ctx, "key", "value", -1*time.Second)
+	err := r.SetWithTTL(ctx, "key", "value", -1*time.Second)
 	if !errors.Is(err, cache.ErrInvalidTTL) {
 		t.Errorf("Expected error to be cache.ErrInvalidTTL, got %v", err)
 	}

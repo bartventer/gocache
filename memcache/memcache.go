@@ -181,13 +181,13 @@ func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, mo
 	return nil
 }
 
-// SetWithExpiry implements cache.Cache.
-func (m *memcacheCache) SetWithExpiry(_ context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+// SetWithTTL implements cache.Cache.
+func (m *memcacheCache) SetWithTTL(_ context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
 	item := &memcache.Item{
 		Key:        key,
 		Value:      []byte(value.(string)),
-		Expiration: int32(expiry.Seconds()),
+		Expiration: int32(ttl.Seconds()),
 	}
 	err := m.client.Set(item)
 	if err != nil {

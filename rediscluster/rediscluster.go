@@ -215,10 +215,10 @@ func (r *redisClusterCache) Set(ctx context.Context, key string, value interface
 	return r.client.Set(ctx, key, value, 0).Err()
 }
 
-// SetWithExpiry implements cache.Cache.
-func (r *redisClusterCache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+// SetWithTTL implements cache.Cache.
+func (r *redisClusterCache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
-	return r.client.Set(ctx, key, value, expiry).Err()
+	return r.client.Set(ctx, key, value, ttl).Err()
 }
 
 // Ping implements cache.Cache.
