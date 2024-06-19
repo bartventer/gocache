@@ -59,6 +59,7 @@ package memcache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -112,7 +113,7 @@ func (m *memcacheCache) init(_ context.Context, opts *Options) {
 
 // Count implements cache.Cache.
 func (m *memcacheCache) Count(_ context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
-	return 0, gcerrors.NewWithScheme(Scheme, fmt.Errorf("Count not supported: %w", cache.ErrPatternMatchingNotSupported))
+	return 0, gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrPatternMatchingNotSupported, fmt.Errorf("Count operation not supported")))
 }
 
 // Exists implements cache.Cache.
@@ -123,7 +124,7 @@ func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymo
 		if err == memcache.ErrCacheMiss {
 			return false, nil
 		} else {
-			return false, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error checking key %s, underlying error: %w", key, err))
+			return false, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error checking key %s: %w", key, err))
 		}
 	}
 	return true, nil
@@ -135,9 +136,9 @@ func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.M
 	err := m.client.Delete(key)
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
-			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w, underlying error: %w", key, cache.ErrKeyNotFound, err))
+			return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found: %w", key, err)))
 		} else {
-			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting key %s, underlying error: %w", key, err))
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting key %s: %w", key, err))
 		}
 	}
 	return nil
@@ -145,7 +146,7 @@ func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.M
 
 // DelKeys implements cache.Cache.
 func (m *memcacheCache) DelKeys(_ context.Context, pattern string, modifiers ...keymod.Mod) error {
-	return gcerrors.NewWithScheme(Scheme, fmt.Errorf("DelKeys not supported: %w", cache.ErrPatternMatchingNotSupported))
+	return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrPatternMatchingNotSupported, fmt.Errorf("DelKeys operation not supported")))
 }
 
 // Clear implements cache.Cache.
@@ -159,9 +160,9 @@ func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.M
 	item, err := m.client.Get(key)
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
-			return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w, underlying error: %w", key, cache.ErrKeyNotFound, err))
+			return nil, gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found: %w", key, err)))
 		} else {
-			return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error getting key %s, underlying error: %w", key, err))
+			return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error getting key %s: %w", key, err))
 		}
 	}
 	return item.Value, nil

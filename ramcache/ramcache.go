@@ -72,6 +72,7 @@ import (
 	"context"
 	"encoding"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -161,7 +162,7 @@ func (r *ramcache) removeExpiredItems() {
 
 // Count implements cache.Cache.
 func (r *ramcache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
-	return 0, gcerrors.NewWithScheme(Scheme, fmt.Errorf("Count not supported: %w", cache.ErrPatternMatchingNotSupported))
+	return 0, gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrPatternMatchingNotSupported, fmt.Errorf("Count operation not supported")))
 }
 
 // Exists implements cache.Cache.
@@ -180,7 +181,7 @@ func (r *ramcache) Del(ctx context.Context, key string, modifiers ...keymod.Mod)
 	key = keymod.Modify(key, modifiers...)
 	_, exists := r.store.Get(key)
 	if !exists {
-		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("%s: %w", key, cache.ErrKeyNotFound))
+		return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found", key)))
 	}
 	r.store.Delete(key)
 	return nil
@@ -188,7 +189,7 @@ func (r *ramcache) Del(ctx context.Context, key string, modifiers ...keymod.Mod)
 
 // DelKeys implements cache.Cache.
 func (r *ramcache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error {
-	return gcerrors.NewWithScheme(Scheme, fmt.Errorf("DelKeys not supported: %w", cache.ErrPatternMatchingNotSupported))
+	return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrPatternMatchingNotSupported, fmt.Errorf("pattern %s not supported", pattern)))
 }
 
 // Clear implements cache.Cache.
@@ -203,7 +204,7 @@ func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.Mod)
 	item, exists := r.store.Get(key)
 	if !exists || item.IsExpired() {
 		r.store.Delete(key)
-		return nil, gcerrors.NewWithScheme(Scheme, cache.ErrKeyNotFound)
+		return nil, gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found", key)))
 	}
 	return item.Value, nil
 }
