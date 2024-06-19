@@ -23,29 +23,29 @@ func Test_optionsFromURL(t *testing.T) {
 		{
 			name: "parses valid URL",
 			args: args{
-				u:              mustParseURL("ramcache://?defaultttl=5m"),
+				u:              mustParseURL("ramcache://?cleanupinterval=1m"),
 				paramOverrides: map[string]string{},
 			},
 			want: Options{
-				DefaultTTL: 5 * time.Minute,
+				CleanupInterval: 1 * time.Minute,
 			},
 			wantErr: false,
 		},
 		{
 			name: "ignores blacklisted parameters",
 			args: args{
-				u:              mustParseURL("ramcache://?defaultttl=5m"),
+				u:              mustParseURL("ramcache://?blacklistedParam=value&cleanupinterval=1m"),
 				paramOverrides: map[string]string{"blacklistedParam": "value"},
 			},
 			want: Options{
-				DefaultTTL: 5 * time.Minute,
+				CleanupInterval: 1 * time.Minute,
 			},
 			wantErr: false,
 		},
 		{
 			name: "returns error for invalid parameters",
 			args: args{
-				u:              mustParseURL("ramcache://?defaultttl=invalid"),
+				u:              mustParseURL("ramcache://?cleanupinterval=invalid"),
 				paramOverrides: map[string]string{},
 			},
 			want:    Options{},

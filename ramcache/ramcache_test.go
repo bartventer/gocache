@@ -2,7 +2,9 @@ package ramcache
 
 import (
 	"context"
+	"errors"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,33 +37,58 @@ func TestRamcacheCache_New(t *testing.T) {
 func Test_ramcache_removeExpiredItems(t *testing.T) {
 	ctx := context.Background()
 	r := &ramcache{}
-	r.init(ctx, &Options{DefaultTTL: 24 * time.Hour, CleanupInterval: 5 * time.Minute})
+	r.init(ctx, &Options{CleanupInterval: 5 * time.Minute})
 
-	// Add an expired item
-	expiredKey := "expired"
-	r.store.Set(expiredKey, item{
-		Value:  []byte("expired"),
-		Expiry: time.Now().Add(-time.Hour), // 1 hour in the past
-	})
-
-	// Add a non-expired item
-	nonExpiredKey := "nonExpired"
-	r.store.Set(nonExpiredKey, item{
-		Value:  []byte("nonExpired"),
-		Expiry: time.Now().Add(time.Hour), // 1 hour in the future
-	})
-
-	// Call the method under test
-	r.removeExpiredItems()
-
-	// Check that the expired item was removed
-	if _, exists := r.store.Get(expiredKey); exists {
-		t.Errorf("Expected expired item to be removed, but it was not")
+	tests := []struct {
+		name     string
+		key      string
+		value    []byte
+		expiry   time.Time
+		expected bool
+	}{
+		{
+			name:     "Expired item",
+			key:      "expired",
+			value:    []byte("expired"),
+			expiry:   time.Now().Add(-time.Hour), // 1 hour in the past
+			expected: false,                      // Expected to be removed
+		},
+		{
+			name:     "Non-expired item",
+			key:      "nonExpired",
+			value:    []byte("nonExpired"),
+			expiry:   time.Now().Add(time.Hour), // 1 hour in the future
+			expected: true,                      // Expected to not be removed
+		},
 	}
 
-	// Check that the non-expired item was not removed
-	if _, exists := r.store.Get(nonExpiredKey); !exists {
-		t.Errorf("Expected non-expired item to not be removed, but it was")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Add item
+			r.store.Set(tt.key, item{
+				Value:  tt.value,
+				Expiry: tt.expiry,
+			})
+
+			// Call the method under test
+			r.removeExpiredItems()
+
+			// Check if the item was removed or not
+			_, exists := r.store.Get(tt.key)
+			if exists != tt.expected {
+				t.Errorf("Expected existence of item to be %v, but got %v", tt.expected, exists)
+			}
+		})
+	}
+}
+
+func TestSetWithExpiry_InvalidExpiry(t *testing.T) {
+	ctx := context.Background()
+	r := New(ctx, &Options{})
+
+	err := r.SetWithExpiry(ctx, "key", "value", -1*time.Second)
+	if !errors.Is(err, cache.ErrInvalidTTL) {
+		t.Errorf("Expected error to be cache.ErrInvalidTTL, got %v", err)
 	}
 }
 
@@ -117,6 +144,24 @@ func Test_ramcache_set(t *testing.T) {
 			value:   &TextMarshalerError{},
 			wantErr: true,
 		},
+		{
+			name:    "set json marshaler",
+			key:     "key8",
+			value:   &JSONMarshaler{},
+			wantErr: false,
+		},
+		{
+			name:    "set stringer",
+			key:     "key9",
+			value:   &Stringer{},
+			wantErr: false,
+		},
+		{
+			name:    "set reader",
+			key:     "key11",
+			value:   strings.NewReader("reader"),
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -153,6 +198,18 @@ type TextMarshalerError struct{}
 
 func (tm *TextMarshalerError) MarshalText() ([]byte, error) {
 	return nil, assert.AnError
+}
+
+type JSONMarshaler struct{}
+
+func (jm *JSONMarshaler) MarshalJSON() ([]byte, error) {
+	return []byte(`{"json": "marshaler"}`), nil
+}
+
+type Stringer struct{}
+
+func (s *Stringer) String() string {
+	return "stringer"
 }
 
 func setupCache(t *testing.T) *ramcache {

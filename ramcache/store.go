@@ -8,14 +8,27 @@ import (
 
 // item is a cache item.
 type item struct {
-	Value    []byte    // Value is the item value.
-	Expiry   time.Time // Expiry is the item expiry time. Default is 24 hours.
-	NoExpiry bool      // NoExpiry indicates whether the item should never expire.
+	Value  []byte    // Value is the item value.
+	Expiry time.Time // Expiry is the item expiry time. Zero means no expiry.
+}
+
+// Compare compares the item with another item.
+func (i item) Compare(other item) int {
+	if i.Expiry.IsZero() {
+		if other.Expiry.IsZero() {
+			return 0
+		}
+		return 1
+	}
+	if other.Expiry.IsZero() {
+		return -1
+	}
+	return i.Expiry.Compare(other.Expiry)
 }
 
 // IsExpired returns true if the item is expired.
 func (i item) IsExpired() bool {
-	if i.NoExpiry {
+	if i.Expiry.IsZero() {
 		return false
 	}
 	return time.Now().After(i.Expiry)
@@ -74,16 +87,7 @@ func (s *store) KeyItemsSortedByExpiry() []keyItem {
 		items = append(items, keyItem{Key: key, Item: item})
 	}
 	slices.SortFunc(items, func(a, b keyItem) int {
-		if a.Item.NoExpiry && b.Item.NoExpiry {
-			return 0
-		}
-		if a.Item.NoExpiry {
-			return 1
-		}
-		if b.Item.NoExpiry {
-			return -1
-		}
-		return a.Item.Expiry.Compare(b.Item.Expiry)
+		return a.Item.Compare(b.Item)
 	})
 	return items
 }

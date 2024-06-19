@@ -10,19 +10,21 @@ The URL should have the following format:
 
 	ramcache://[?query]
 
-The query part, though optional, can be used for additional configuration through query parameters.
-
-Query parameters can be used to configure the in-memory cache options. The keys of the query
-parameters should correspond to the case-insensitive field names of [Options].
+The optional query part can be used to configure the in-memory cache options through
+query parameters. The keys of the query parameters should match the case-insensitive
+field names of the [Options] structure.
 
 # Value Types
 
-Values being set in the cache should be of type `[]byte`, `string`, or implement the
-[encoding.BinaryMarshaler] or [encoding.TextMarshaler] interfaces.
+Values being set in the cache should be of type [][byte], [string], or implement one
+of the following interfaces:
+  - [encoding.BinaryMarshaler]
+  - [encoding.TextMarshaler]
+  - [json.Marshaler]
+  - [fmt.Stringer]
+  - [io.Reader]
 
 # Usage
-
-Example via generic cache interface:
 
 	import (
 	    "context"
@@ -34,7 +36,7 @@ Example via generic cache interface:
 
 	func main() {
 	    ctx := context.Background()
-		urlStr := "ramcache://?defaultttl=5m&cleanupinterval=1m"
+		urlStr := "ramcache://?cleanupinterval=1m"
 	    c, err := cache.OpenCache(ctx, urlStr)
 	    if err != nil {
 	        log.Fatalf("Failed to initialize cache: %v", err)
@@ -42,7 +44,7 @@ Example via generic cache interface:
 	    // ... use c with the cache.Cache interface
 	}
 
-Example via [ramcache.New] constructor:
+You can create a RAM cache with [New]:
 
 	import (
 	    "context"
@@ -53,7 +55,6 @@ Example via [ramcache.New] constructor:
 	func main() {
 	    ctx := context.Background()
 	    c := ramcache.New(ctx, &ramcache.Options{
-			DefaultTTL: 5 * time.Minute,
 			CleanupInterval: 1 * time.Minute,
 		})
 	    // ... use c with the cache.Cache interface
@@ -70,7 +71,9 @@ package ramcache
 import (
 	"context"
 	"encoding"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"sync"
 	"time"
@@ -208,16 +211,19 @@ func (r *ramcache) Get(ctx context.Context, key string, modifiers ...keymod.Mod)
 // Set implements cache.Cache.
 func (r *ramcache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
 	key = keymod.Modify(key, modifiers...)
-	return r.set(key, value, r.opts.DefaultTTL, true)
+	return r.set(key, value, 0)
 }
 
 // SetWithExpiry implements cache.Cache.
 func (r *ramcache) SetWithExpiry(ctx context.Context, key string, value interface{}, expiry time.Duration, modifiers ...keymod.Mod) error {
+	if err := cache.ValidateTTL(expiry); err != nil {
+		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("invalid expiry duration %q: %w", expiry, err))
+	}
 	key = keymod.Modify(key, modifiers...)
-	return r.set(key, value, expiry, false)
+	return r.set(key, value, expiry)
 }
 
-func (r *ramcache) set(key string, value interface{}, expiry time.Duration, noExpiry bool) error {
+func (r *ramcache) set(key string, value interface{}, expiry time.Duration) error {
 	var data []byte
 	switch v := value.(type) {
 	case string:
@@ -236,10 +242,30 @@ func (r *ramcache) set(key string, value interface{}, expiry time.Duration, noEx
 		if err != nil {
 			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("failed to marshal value: %w", err))
 		}
+	case json.Marshaler:
+		var err error
+		data, err = v.MarshalJSON()
+		if err != nil {
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("failed to marshal value: %w", err))
+		}
+	case fmt.Stringer:
+		data = []byte(v.String())
+	case io.Reader:
+		var err error
+		data, err = io.ReadAll(v)
+		if err != nil {
+			return gcerrors.NewWithScheme(Scheme, fmt.Errorf("failed to read value: %w", err))
+		}
 	default:
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("unsupported value type: %T", v))
 	}
-	r.store.Set(key, item{Value: data, Expiry: time.Now().Add(expiry), NoExpiry: noExpiry})
+
+	var expiryTime time.Time
+	if expiry != 0 {
+		expiryTime = time.Now().Add(expiry)
+	}
+
+	r.store.Set(key, item{Value: data, Expiry: expiryTime})
 	return nil
 }
 
