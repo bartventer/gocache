@@ -1,9 +1,9 @@
 /*
-Package urlparser provides a utility for parsing URL query parameters into
+Package urlparser provides utilities for parsing URL query parameters into
 a given struct. It uses the mapstructure package to decode query parameters
-into the struct fields. It also supports custom decode hooks for specific types.
+into struct fields and supports custom decode hooks for specific types.
 
-Example usage:
+Example:
 
 	type Options struct {
 	    MaxRetries      int
@@ -11,21 +11,8 @@ Example usage:
 	    TLSConfig       *tls.Config
 	}
 
-	// Define a TLS config
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		MinVersion:         tls.VersionTLS13,
-		CipherSuites:       []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384},
-		PreferServerCipherSuites: true,
-		ServerName: "localhost",
-		ClientAuth: tls.RequireAndVerifyClientCert,
-	}
+	const tlsConfigStr = `{"InsecureSkipVerify":true}`
 
-	// Encode the tls.Config as a JSON string
-	tlsConfigJSON, _ := json.Marshal(tlsConfig)
-	tlsConfigStr := string(tlsConfigJSON)
-
-	// Create a URL with query parameters
 	urlStr := "fake://localhost:6379?maxretries=5&minretrybackoff=512ms&tlsconfig=" + url.QueryEscape(tlsConfigStr)
 	u, _ := url.Parse(urlStr)
 	options := &Options{}
@@ -70,22 +57,22 @@ type URLParser struct {
 // They are called in the order they are provided.
 func NewURLParser(decodeHooks ...mapstructure.DecodeHookFunc) *URLParser {
 	parser := &URLParser{}
-	if len(decodeHooks) == 0 {
-		decodeHooks = []mapstructure.DecodeHookFunc{
-			mapstructure.StringToTimeDurationHookFunc(),
-			mapstructure.StringToSliceHookFunc(","),
-			mapstructure.StringToTimeHookFunc(time.RFC3339),
-			mapstructure.StringToIPNetHookFunc(),
-			mapstructure.StringToIPHookFunc(),
-			mapstructure.RecursiveStructToMapHookFunc(),
-		}
-	}
 	parser.init(decodeHooks...)
 	return parser
 }
 
 func (p *URLParser) init(decodeHooks ...mapstructure.DecodeHookFunc) {
 	p.once.Do(func() {
+		if len(decodeHooks) == 0 {
+			decodeHooks = []mapstructure.DecodeHookFunc{
+				mapstructure.StringToTimeDurationHookFunc(),
+				mapstructure.StringToSliceHookFunc(","),
+				mapstructure.StringToTimeHookFunc(time.RFC3339),
+				mapstructure.StringToIPNetHookFunc(),
+				mapstructure.StringToIPHookFunc(),
+				mapstructure.RecursiveStructToMapHookFunc(),
+			}
+		}
 		p.log = logext.NewLogger(os.Stdout)
 		p.decodeHooks = decodeHooks
 	})
