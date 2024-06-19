@@ -69,22 +69,9 @@ package cache
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/bartventer/gocache/keymod"
-)
-
-var (
-	// ErrNoCache is returned when no cache implementation is available.
-	ErrNoCache = errors.New("gocache: no cache implementation available")
-
-	// ErrKeyNotFound is returned when a key is not found in the cache.
-	ErrKeyNotFound = errors.New("gocache: key not found")
-
-	// ErrPatternMatchingNotSupported is returned when a pattern matching operation is not supported
-	// by the cache implementation.
-	ErrPatternMatchingNotSupported = errors.New("gocache: pattern matching not supported")
 )
 
 // Cache is an interface that represents a cache. It has methods for setting, getting and deleting keys.

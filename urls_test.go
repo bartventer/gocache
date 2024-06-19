@@ -70,3 +70,36 @@ func TestCache(t *testing.T) {
 		})
 	}
 }
+
+func TestRegisterCache(t *testing.T) {
+	fake := &mockURLOpener{}
+
+	// Test registering a new scheme.
+	RegisterCache("new", fake)
+
+	// Test registering an existing scheme, should panic.
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+	RegisterCache("new", fake)
+}
+
+func TestOpenCache(t *testing.T) {
+	ctx := context.Background()
+	fake := &mockURLOpener{}
+	RegisterCache("foo", fake)
+
+	// Test opening a registered scheme.
+	_, err := OpenCache(ctx, "foo://mycache")
+	if err != nil {
+		t.Errorf("OpenCache() error = %v, want nil", err)
+	}
+
+	// Test opening an unregistered scheme, should return an error.
+	_, err = OpenCache(ctx, "bar://mycache")
+	if err == nil {
+		t.Errorf("OpenCache() error = nil, want non-nil")
+	}
+}
