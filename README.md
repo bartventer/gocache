@@ -25,7 +25,9 @@ go get -u github.com/bartventer/gocache
 | Memcache | [bradfitz/gomemcache](https://github.com/bradfitz/gomemcache) | [![Go Reference](https://pkg.go.dev/badge/github.com/bartventer/gocache/memcache.svg)](https://pkg.go.dev/github.com/bartventer/gocache/memcache) |
 | RAM Cache (in-memory) | [bartventer/gocache](https://github.com/bartventer/gocache) | [![Go Reference](https://pkg.go.dev/badge/github.com/bartventer/gocache/ramcache.svg)](https://pkg.go.dev/github.com/bartventer/gocache/ramcache) |
 
-_Pull requests for additional cache implementations are welcome!_
+_**Note**: More coming soon!_
+
+_See the [Contributing](#contributing) section if you would like to add a new cache implementation._
 
 ## Usage
 
@@ -217,7 +219,7 @@ func main() {
 
 ## Contributing
 
-All contributions are welcome! Open a pull request to request a feature or submit a bug report.
+All contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to contribute.
 
 ## License
 
