@@ -8,7 +8,7 @@ import (
 func TestNewLogger(t *testing.T) {
 	t.Run("debug", func(t *testing.T) {
 		var b bytes.Buffer
-		*debug = true
+		t.Setenv(DebugEnvVar, "true")
 		logger := NewLogger(&b)
 		logger.Println("test message")
 		if b.String() == "" {
@@ -18,7 +18,6 @@ func TestNewLogger(t *testing.T) {
 
 	t.Run("no debug", func(t *testing.T) {
 		var b bytes.Buffer
-		*debug = false
 		logger := NewLogger(&b)
 		logger.Println("test message")
 		if b.String() != "" {
