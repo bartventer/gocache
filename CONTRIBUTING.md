@@ -1,4 +1,4 @@
-# 🚀 Contributing to `GoCache`
+# Contributing to `GoCache`
 
 Thanks for your interest in contributing! We appreciate your effort and to make the process as smooth as possible, we've prepared some guidelines for you.
 
