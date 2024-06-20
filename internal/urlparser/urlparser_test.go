@@ -25,6 +25,20 @@ type FakeOptions struct {
 	TLSConfig       *tls.Config
 }
 
+func TestNewURLParser(t *testing.T) {
+	parser := NewURLParser()
+	if parser == nil {
+		t.Errorf("NewURLParser() = nil, want non-nil")
+	}
+}
+
+func TestNewDecoderConfig(t *testing.T) {
+	config := newDecoderConfig()
+	if config == nil {
+		t.Errorf("newDecoderConfig() = nil, want non-nil")
+	}
+}
+
 func TestURLParser_OptionsFromURL(t *testing.T) {
 	type args struct {
 		u                 *url.URL

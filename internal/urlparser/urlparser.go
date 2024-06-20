@@ -42,29 +42,41 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-// URLParser is a utility for parsing [url.URL] query parameters into a given struct.
+// urlParser is a utility for parsing [url.URL] query parameters into a given struct.
 // It uses the [mapstructure] package to decode query parameters into the struct fields.
 // It also supports custom decode hooks for specific types.
-type URLParser struct {
+type urlParser struct {
 	decodeHooks []mapstructure.DecodeHookFunc
-	metadata    mapstructure.Metadata
-	log         logext.Logger
+	log         *log.Logger
 	once        sync.Once
 }
 
-// NewURLParser creates a new [URLParser] with the given [mapstructure.DecodeHookFunc] hooks.
-// Decode hooks are functions that can convert query parameters into specific types.
-// They are called in the order they are provided.
-func NewURLParser(decodeHooks ...mapstructure.DecodeHookFunc) *URLParser {
-	parser := &URLParser{}
-	parser.init(decodeHooks...)
-	return parser
+func newDecoderConfig(decodeHooks ...mapstructure.DecodeHookFunc) *mapstructure.DecoderConfig {
+	config := &mapstructure.DecoderConfig{
+		ZeroFields:       true,
+		WeaklyTypedInput: true,
+		Squash:           true,
+		DecodeHook:       mapstructure.ComposeDecodeHookFunc(decodeHooks...),
+	}
+	return config
 }
 
-func (p *URLParser) init(decodeHooks ...mapstructure.DecodeHookFunc) {
+// NewURLParser creates a new [urlParser] with the given [mapstructure.DecodeHookFunc] hooks.
+// Decode hooks are functions that can convert query parameters into specific types.
+// They are called in the order they are provided.
+func NewURLParser(decodeHooks ...mapstructure.DecodeHookFunc) *urlParser {
+	u := &urlParser{}
+	u.init(decodeHooks...)
+	return u
+}
+
+func (p *urlParser) init(decodeHooks ...mapstructure.DecodeHookFunc) {
 	p.once.Do(func() {
-		if len(decodeHooks) == 0 {
-			decodeHooks = []mapstructure.DecodeHookFunc{
+		p.log = logext.NewLogger(os.Stdout)
+		if len(decodeHooks) > 0 {
+			p.decodeHooks = decodeHooks
+		} else {
+			p.decodeHooks = []mapstructure.DecodeHookFunc{
 				mapstructure.StringToTimeDurationHookFunc(),
 				mapstructure.StringToSliceHookFunc(","),
 				mapstructure.StringToTimeHookFunc(time.RFC3339),
@@ -73,13 +85,11 @@ func (p *URLParser) init(decodeHooks ...mapstructure.DecodeHookFunc) {
 				mapstructure.RecursiveStructToMapHookFunc(),
 			}
 		}
-		p.log = logext.NewLogger(os.Stdout)
-		p.decodeHooks = decodeHooks
 	})
 }
 
 // OptionsFromURL parses the query parameters from the given [url.URL] into the provided
-// options struct. It uses the [mapstructure.DecodeHookFunc] hooks provided when creating the [URLParser]
+// options struct. It uses the [mapstructure.DecodeHookFunc] hooks provided when creating the [urlParser]
 // to convert query parameters into the correct types for the struct fields.
 // It ignores any query parameters whose keys are in the paramKeyBlacklist.
 // It returns an error if it fails to parse the [url.URL] or convert the query parameters.
@@ -104,7 +114,7 @@ func (p *URLParser) init(decodeHooks ...mapstructure.DecodeHookFunc) {
 //		MinRetryBackoff: 512 * time.Millisecond,
 //		DB:              0, // db is blacklisted and not set
 //	}
-func (p *URLParser) OptionsFromURL(u *url.URL, options interface{}, paramKeyBlacklist map[string]bool) error {
+func (p *urlParser) OptionsFromURL(u *url.URL, options interface{}, paramKeyBlacklist map[string]bool) error {
 	// Parse the query parameters into a map
 	queryParams := make(map[string]string)
 	for key, values := range u.Query() {
@@ -113,58 +123,47 @@ func (p *URLParser) OptionsFromURL(u *url.URL, options interface{}, paramKeyBlac
 		}
 	}
 
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		ZeroFields:       true, // ensure that the options struct is zeroed out before decoding
-		WeaklyTypedInput: true,
-		Result:           options,
-		Squash:           true,
-		DecodeHook:       mapstructure.ComposeDecodeHookFunc(p.decodeHooks...),
-		Metadata:         &p.metadata,
-		MatchName: func(mapKey, fieldName string) bool {
-			return strings.EqualFold(mapKey, fieldName) && !paramKeyBlacklist[mapKey]
-		},
-	})
+	// Set the decoder options
+	config := newDecoderConfig(p.decodeHooks...)
+	metadata := &mapstructure.Metadata{}
+	config.Result = options
+	config.Metadata = metadata
+	config.MatchName = func(mapKey, fieldName string) bool {
+		return strings.EqualFold(mapKey, fieldName) && !paramKeyBlacklist[mapKey]
+	}
 
+	decoder, err := mapstructure.NewDecoder(config)
 	if err != nil {
 		return fmt.Errorf("urlparser: failed to create decoder: %w", err)
 	}
+
 	err = decoder.Decode(queryParams)
 	if err != nil {
 		return err
 	}
-	p.logMetadata(options)
+
+	p.logMetadata(options, metadata)
+
 	return nil
 }
 
 // logMetadata logs useful information about the decoded result.
-func (p *URLParser) logMetadata(dest interface{}) {
+func (p *urlParser) logMetadata(dest interface{}, metadata *mapstructure.Metadata) {
 	// Get the actual type of dest
 	destType := reflect.TypeOf(dest).Elem()
 
 	// Successful decoded keys
-	if len(p.metadata.Keys) > 0 {
-		log.Printf("Successfully decoded url keys for %v: %v", destType, strings.Join(p.metadata.Keys, ", "))
+	if len(metadata.Keys) > 0 {
+		p.log.Printf("Successfully decoded url keys for %v: %v", destType, strings.Join(metadata.Keys, ", "))
 	}
 
 	// Unused keys
-	if len(p.metadata.Unused) > 0 {
-		log.Printf("Unused options keys for %v: %v", destType, strings.Join(p.metadata.Unused, ", "))
+	if len(metadata.Unused) > 0 {
+		p.log.Printf("Unused options keys for %v: %v", destType, strings.Join(metadata.Unused, ", "))
 	}
 
 	// Unset keys
-	if len(p.metadata.Unset) > 0 {
-		log.Printf("Unset options keys for %v: %v", destType, strings.Join(p.metadata.Unset, ", "))
+	if len(metadata.Unset) > 0 {
+		p.log.Printf("Unset options keys for %v: %v", destType, strings.Join(metadata.Unset, ", "))
 	}
-}
-
-// DefaultHooks returns the default decode hooks used by the [URLParser].
-func DefaultHooks() mapstructure.DecodeHookFunc {
-	return mapstructure.ComposeDecodeHookFunc(
-		mapstructure.StringToTimeDurationHookFunc(),
-		mapstructure.StringToSliceHookFunc(","),
-		mapstructure.StringToTimeHookFunc(time.RFC3339),
-		mapstructure.StringToIPNetHookFunc(),
-		mapstructure.StringToIPHookFunc(),
-		mapstructure.RecursiveStructToMapHookFunc(),
-	)
 }
