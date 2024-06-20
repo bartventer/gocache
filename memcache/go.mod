@@ -11,7 +11,7 @@ replace github.com/bartventer/gocache => ../
 replace github.com/docker/docker => github.com/docker/docker v26.1.4+incompatible
 
 require (
-	github.com/bartventer/gocache v1.11.1
+	github.com/bartventer/gocache v1.12.0
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
 	github.com/docker/docker v27.0.0+incompatible
 	github.com/stretchr/testify v1.9.0
