@@ -219,7 +219,7 @@ func main() {
 
 ## Contributing
 
-All contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to contribute.
+All contributions are welcome! See the [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## License
 
