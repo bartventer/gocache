@@ -1,11 +1,13 @@
 module github.com/bartventer/gocache/ramcache
 
-go 1.22.4
+go 1.22
+
+toolchain go1.22.4
 
 replace github.com/bartventer/gocache => ../
 
 require (
-	github.com/bartventer/gocache v1.9.0
+	github.com/bartventer/gocache v1.11.1
 	github.com/stretchr/testify v1.9.0
 )
 

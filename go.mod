@@ -1,6 +1,8 @@
 module github.com/bartventer/gocache
 
-go 1.22.4
+go 1.22
+
+toolchain go1.22.4
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
