@@ -224,7 +224,3 @@ All contributions are welcome! See the [Contributing Guide](CONTRIBUTING.md) for
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-
-This package has been inspired by and uses similar patterns to those used in [Google's Go Cloud Development Kit](https://github.com/google/go-cloud). Make sure to [check it out](https://gocloud.dev/)!
