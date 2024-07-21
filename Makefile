@@ -1,5 +1,5 @@
 .SHELLFLAGS = -ecuo pipefail
-SHELL = /usr/bin/env bash
+SHELL = /bin/bash
 
 .PHONY: test
 test:
