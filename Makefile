@@ -1,5 +1,5 @@
 .SHELLFLAGS = -ecuo pipefail
-SHELL = /bin/bash
+SHELL = /usr/bin/env bash
 
 .PHONY: test
 test:
@@ -12,3 +12,7 @@ update:
 .PHONY: lint
 lint:
 	golangci-lint run ./... --timeout 5m --fix --verbose
+
+.PHONY: release
+release:
+	./scripts/release.sh
