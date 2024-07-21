@@ -1,5 +1,5 @@
 /*
-Package ramcache implements the [cache.Cache] interface using an in-memory map.
+Package ramcache implements the [driver.Cache] interface using an in-memory map.
 
 It's useful for testing, development, and caching small data sets. It's not recommended
 for production due to lack of data persistence across restarts.
@@ -81,6 +81,7 @@ import (
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/gcerrors"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/keymod"
 )
 
@@ -91,7 +92,7 @@ func init() { //nolint:gochecknoinits // This is the entry point of the package.
 	cache.RegisterCache(Scheme, &ramcache{})
 }
 
-var _ cache.Cache = new(ramcache)
+var _ driver.Cache = new(ramcache)
 var _ cache.URLOpener = new(ramcache)
 
 // ramcache is an in-memory implementation of the cache.Cache interface.
@@ -110,13 +111,13 @@ func New(ctx context.Context, opts *Options) *ramcache {
 }
 
 // OpenCacheURL implements cache.URLOpener.
-func (r *ramcache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
+func (r *ramcache) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.Cache, error) {
 	opts, err := optionsFromURL(u)
 	if err != nil {
 		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("failed to parse URL: %w", err))
 	}
 	r.init(ctx, &opts)
-	return r, nil
+	return cache.NewCache(r), nil
 }
 
 func (r *ramcache) init(_ context.Context, opts *Options) {
@@ -277,6 +278,6 @@ func (r *ramcache) Close() error {
 }
 
 // Ping implements cache.Cache.
-func (r *ramcache) Ping(ctx context.Context) error {
+func (r *ramcache) Ping(_ context.Context) error {
 	return nil
 }

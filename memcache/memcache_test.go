@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/drivertest"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/docker/api/types/container"
@@ -127,7 +127,7 @@ type harness struct {
 	cache *memcacheCache
 }
 
-func (h *harness) MakeCache(ctx context.Context) (cache.Cache, error) {
+func (h *harness) MakeCache(ctx context.Context) (driver.Cache, error) {
 	return h.cache, nil
 }
 

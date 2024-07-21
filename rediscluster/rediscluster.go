@@ -1,5 +1,5 @@
 /*
-Package rediscluster provides a Redis Cluster implementation of the [cache.Cache] interface.
+Package rediscluster provides a Redis Cluster implementation of the [driver.Cache] interface.
 It uses the go-redis library to interact with a Redis Cluster.
 
 # URL Format:
@@ -70,6 +70,7 @@ import (
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/gcerrors"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/keymod"
 	"github.com/redis/go-redis/v9"
 )
@@ -99,16 +100,16 @@ func New(ctx context.Context, opts *Options) *redisClusterCache {
 }
 
 // Ensure RedisClusterCache implements the cache.Cache interface.
-var _ cache.Cache = &redisClusterCache{}
+var _ driver.Cache = &redisClusterCache{}
 
 // OptionsFromURL implements cache.URLOpener.
-func (r *redisClusterCache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
+func (r *redisClusterCache) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.Cache, error) {
 	opts, err := optionsFromURL(u)
 	if err != nil {
 		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error parsing URL: %w", err))
 	}
 	r.init(ctx, opts.Config, &opts.ClusterOptions)
-	return r, nil
+	return cache.NewCache(r), nil
 }
 
 func (r *redisClusterCache) init(_ context.Context, config *Config, options *redis.ClusterOptions) {

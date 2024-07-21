@@ -9,6 +9,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/drivertest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -222,7 +223,7 @@ type harness struct {
 	cache *ramcache
 }
 
-func (h *harness) MakeCache(ctx context.Context) (cache.Cache, error) {
+func (h *harness) MakeCache(ctx context.Context) (driver.Cache, error) {
 	return h.cache, nil
 }
 

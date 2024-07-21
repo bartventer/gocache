@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/keymod"
 )
 
@@ -31,7 +32,7 @@ func (r *MockCache) init(_ context.Context) {
 }
 
 // Ensure MockCache implements the cache.Cache interface.
-var _ cache.Cache = &MockCache{}
+var _ driver.Cache = &MockCache{}
 
 // Count implements cache.Cache.
 func (r *MockCache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
@@ -140,7 +141,7 @@ func NewMockCache() *MockCache {
 
 type MockHarness struct{}
 
-func (h *MockHarness) MakeCache(ctx context.Context) (cache.Cache, error) {
+func (h *MockHarness) MakeCache(ctx context.Context) (driver.Cache, error) {
 	return NewMockCache(), nil
 }
 

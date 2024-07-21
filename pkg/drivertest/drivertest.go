@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/keymod"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,8 +30,8 @@ type Options struct {
 // Harness descibes the functionality test harnesses must provide to run
 // conformance tests.
 type Harness interface {
-	// MakeCache makes a [cache.Cache] for testing.
-	MakeCache(context.Context) (cache.Cache, error)
+	// MakeCache makes a [driver.Cache] for testing.
+	MakeCache(context.Context) (driver.Cache, error)
 
 	// Close closes resources used by the harness.
 	Close()
@@ -60,7 +61,7 @@ func RunConformanceTests(t *testing.T, newHarness HarnessMaker) {
 }
 
 // withCache creates a new cache and runs the test function.
-func withCache(t *testing.T, newHarness HarnessMaker, f func(*testing.T, cache.Cache, Options)) {
+func withCache(t *testing.T, newHarness HarnessMaker, f func(*testing.T, *cache.Cache, Options)) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -71,11 +72,9 @@ func withCache(t *testing.T, newHarness HarnessMaker, f func(*testing.T, cache.C
 	defer h.Close()
 
 	c, err := h.MakeCache(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	f(t, c, h.Options())
+	f(t, cache.NewCache(c), h.Options())
 }
 
 // uniqueKey returns a unique key for the test.
@@ -85,7 +84,7 @@ func uniqueKey(t *testing.T) string {
 }
 
 // testSet tests the Set method of the cache.
-func testSet(t *testing.T, c cache.Cache, opts Options) {
+func testSet(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	key := uniqueKey(t)
 	value := "testValue"
@@ -102,7 +101,7 @@ func testSet(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testSetWithTTL tests the SetWithTTL method of the cache.
-func testSetWithTTL(t *testing.T, c cache.Cache, opts Options) {
+func testSetWithTTL(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	key := uniqueKey(t)
 	value := "testValue"
@@ -127,7 +126,7 @@ func testSetWithTTL(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testExists tests the Exists method of the cache.
-func testExists(t *testing.T, c cache.Cache, opts Options) {
+func testExists(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	key := uniqueKey(t)
 	value := "testValue"
@@ -144,7 +143,7 @@ func testExists(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testCount tests the Count method of the cache.
-func testCount(t *testing.T, c cache.Cache, opts Options) {
+func testCount(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	key := uniqueKey(t)
 	value := "testValue"
@@ -168,7 +167,7 @@ func testCount(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testGet tests the Get method of the cache.
-func testGet(t *testing.T, c cache.Cache, opts Options) {
+func testGet(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	key := uniqueKey(t)
 	value := "testValue"
@@ -185,7 +184,7 @@ func testGet(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testDel tests the Del method of the cache.
-func testDel(t *testing.T, c cache.Cache, opts Options) {
+func testDel(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	key := uniqueKey(t)
 	value := "testValue"
@@ -207,7 +206,7 @@ func testDel(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testDelKeys tests the DelKeys method of the cache.
-func testDelKeys(t *testing.T, c cache.Cache, opts Options) {
+func testDelKeys(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	keys := []string{"testKey1", "testKey2", "testKey3", "testKey4", "testKey5"}
 	hashTag := uniqueKey(t)
@@ -244,7 +243,7 @@ func testDelKeys(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testClear tests the Clear method of the cache.
-func testClear(t *testing.T, c cache.Cache, opts Options) {
+func testClear(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 
 	key := uniqueKey(t)
@@ -262,14 +261,14 @@ func testClear(t *testing.T, c cache.Cache, opts Options) {
 }
 
 // testPing tests the Ping method of the cache.
-func testPing(t *testing.T, c cache.Cache, opts Options) {
+func testPing(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 	err := c.Ping(context.Background())
 	require.NoError(t, err)
 }
 
 // testClose tests the Close method of the cache.
-func testClose(t *testing.T, c cache.Cache, opts Options) {
+func testClose(t *testing.T, c *cache.Cache, opts Options) {
 	t.Parallel()
 
 	err := c.Close()

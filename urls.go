@@ -9,10 +9,10 @@ import (
 	"github.com/bartventer/gocache/internal/gcerrors"
 )
 
-// URLOpener is an interface for opening caches using URLs.
+// URLOpener defines the interface for opening a cache using a URL.
 type URLOpener interface {
 	// OpenCacheURL opens a cache using a URL and options.
-	OpenCacheURL(ctx context.Context, u *url.URL) (Cache, error)
+	OpenCacheURL(ctx context.Context, u *url.URL) (*Cache, error)
 }
 
 // urlMux is a multiplexer for cache schemes.
@@ -37,7 +37,7 @@ func (m *urlMux) RegisterCache(scheme string, opener URLOpener) {
 
 // OpenCache opens a cache for the provided URL string.
 // It returns an error if the URL cannot be parsed, or if no URLOpener is registered for the URL's scheme.
-func (m *urlMux) OpenCache(ctx context.Context, urlstr string) (Cache, error) {
+func (m *urlMux) OpenCache(ctx context.Context, urlstr string) (*Cache, error) {
 	u, err := url.Parse(urlstr)
 	if err != nil {
 		return nil, err
@@ -61,6 +61,6 @@ func RegisterCache(scheme string, opener URLOpener) {
 
 // OpenCache opens a [Cache] for the provided URL string.
 // It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the URL's scheme.
-func OpenCache(ctx context.Context, urlstr string) (Cache, error) {
+func OpenCache(ctx context.Context, urlstr string) (*Cache, error) {
 	return defaultURLMux.OpenCache(ctx, urlstr)
 }

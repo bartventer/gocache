@@ -1,5 +1,5 @@
 /*
-Package redis provides a Redis Client implementation of the [cache.Cache] interface.
+Package redis provides a Redis Client implementation of the [driver.Cache] interface.
 It uses the go-redis library to interact with a Redis Client.
 
 # URL Format:
@@ -66,6 +66,7 @@ import (
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/gcerrors"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/keymod"
 	"github.com/redis/go-redis/v9"
 )
@@ -95,16 +96,16 @@ func New(ctx context.Context, opts *Options) *redisCache {
 }
 
 // Ensure RedisCache implements the cache.Cache interface.
-var _ cache.Cache = &redisCache{}
+var _ driver.Cache = &redisCache{}
 
-// OpenCacheURL implements cache.URLOpener.
-func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
+// OpenCacheURL implements [cache.URLOpener].
+func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.Cache, error) {
 	opts, err := optionsFromURL(u)
 	if err != nil {
 		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error parsing URL: %w", err))
 	}
 	r.init(ctx, opts.Config, &opts.RedisOptions)
-	return r, nil
+	return cache.NewCache(r), nil
 }
 
 func (r *redisCache) init(_ context.Context, config *Config, options *redis.Options) {

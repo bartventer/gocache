@@ -70,39 +70,68 @@ import (
 	"context"
 	"time"
 
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/keymod"
 )
 
-// Cache is an interface that represents a cache. It has methods for setting, getting and deleting keys.
-// Each cache implementation should implement this interface.
-type Cache interface {
-	// Set sets a key to a value in the cache.
-	Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error
+var _ driver.Cache = new(Cache)
 
-	// SetWithTTL sets a key to a value in the cache with a time-to-live (TTL).
-	SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error
+// Cache is a portable type that implements [driver.Cache].
+type Cache struct {
+	driver driver.Cache
+}
 
-	// Exists checks if a key exists in the cache.
-	Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error)
+// Clear implements [driver.Cache].
+func (c *Cache) Clear(ctx context.Context) error {
+	return c.driver.Clear(ctx)
+}
 
-	// Count returns the number of keys in the cache matching a pattern.
-	Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error)
+// Close implements [driver.Cache].
+func (c *Cache) Close() error {
+	return c.driver.Close()
+}
 
-	// Get gets the value of a key from the cache.
-	Get(ctx context.Context, key string, modifiers ...keymod.Mod) ([]byte, error)
+// Count implements [driver.Cache].
+func (c *Cache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
+	return c.driver.Count(ctx, pattern, modifiers...)
+}
 
-	// Del deletes a key from the cache.
-	Del(ctx context.Context, key string, modifiers ...keymod.Mod) error
+// Del implements [driver.Cache].
+func (c *Cache) Del(ctx context.Context, key string, modifiers ...keymod.Mod) error {
+	return c.driver.Del(ctx, key, modifiers...)
+}
 
-	// DelKeys deletes all keys matching a pattern from the cache.
-	DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error
+// DelKeys implements [driver.Cache].
+func (c *Cache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error {
+	return c.driver.DelKeys(ctx, pattern, modifiers...)
+}
 
-	// Clear clears all keys from the cache.
-	Clear(ctx context.Context) error
+// Exists implements [driver.Cache].
+func (c *Cache) Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error) {
+	return c.driver.Exists(ctx, key, modifiers...)
+}
 
-	// Ping checks if the cache is available.
-	Ping(ctx context.Context) error
+// Get implements [driver.Cache].
+func (c *Cache) Get(ctx context.Context, key string, modifiers ...keymod.Mod) ([]byte, error) {
+	return c.driver.Get(ctx, key, modifiers...)
+}
 
-	// Close closes the cache connection.
-	Close() error
+// Ping implements [driver.Cache].
+func (c *Cache) Ping(ctx context.Context) error {
+	return c.driver.Ping(ctx)
+}
+
+// Set implements [driver.Cache].
+func (c *Cache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
+	return c.driver.Set(ctx, key, value, modifiers...)
+}
+
+// SetWithTTL implements [driver.Cache].
+func (c *Cache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
+	return c.driver.SetWithTTL(ctx, key, value, ttl, modifiers...)
+}
+
+// NewCache creates a new [Cache] using the provided driver. Not intended for direct application use.
+func NewCache(driver driver.Cache) *Cache {
+	return &Cache{driver: driver}
 }

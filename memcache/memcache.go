@@ -1,5 +1,5 @@
 /*
-Package memcache provides a Memcache Client implementation of the [cache.Cache] interface.
+Package memcache provides a Memcache Client implementation of the [driver.Cache] interface.
 It uses the memcache library to interact with a Memcache Client.
 
 # URL Format:
@@ -68,6 +68,7 @@ import (
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/gcerrors"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/keymod"
 	"github.com/bradfitz/gomemcache/memcache"
 )
@@ -93,13 +94,13 @@ func New(ctx context.Context, opts *Options) *memcacheCache {
 }
 
 // Ensure MemcacheCache implements the cache.Cache interface.
-var _ cache.Cache = &memcacheCache{}
+var _ driver.Cache = &memcacheCache{}
 
 // OpenCacheURL implements cache.URLOpener.
-func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL) (cache.Cache, error) {
+func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.Cache, error) {
 	addrs := strings.Split(u.Host, ",")
 	m.init(ctx, &Options{Addrs: addrs})
-	return m, nil
+	return cache.NewCache(m), nil
 }
 
 func (m *memcacheCache) init(_ context.Context, opts *Options) {
@@ -198,7 +199,7 @@ func (m *memcacheCache) SetWithTTL(_ context.Context, key string, value interfac
 }
 
 // Ping implements cache.Cache.
-func (m *memcacheCache) Ping(ctx context.Context) error {
+func (m *memcacheCache) Ping(_ context.Context) error {
 	return m.client.Ping()
 }
 

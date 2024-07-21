@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	cache "github.com/bartventer/gocache"
+	"github.com/bartventer/gocache/pkg/driver"
 	"github.com/bartventer/gocache/pkg/drivertest"
 	"github.com/docker/docker/api/types/container"
 	"github.com/redis/go-redis/v9"
@@ -65,6 +65,7 @@ func setupCache(t *testing.T) *redisCache {
 			}
 		},
 		WaitingFor: wait.ForHealthCheck(),
+		Tmpfs:      map[string]string{"/data": "rw"},
 	}
 	redisC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -103,7 +104,7 @@ type harness struct {
 	cache *redisCache
 }
 
-func (h *harness) MakeCache(ctx context.Context) (cache.Cache, error) {
+func (h *harness) MakeCache(ctx context.Context) (driver.Cache, error) {
 	return h.cache, nil
 }
 
