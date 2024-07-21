@@ -1,0 +1,13 @@
+{
+  "name": "gocache",
+  "repository": "git@github.com:bartventer/gocache.git",
+  "author": "Bart Venter <bartventer@outlook.com>",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.5.1"
+  },
+  "dependencies": {
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^24.0.0"
+  }
+}
