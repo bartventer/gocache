@@ -70,7 +70,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/bartventer/gocache/keymod"
+	"github.com/bartventer/gocache/pkg/keymod"
 )
 
 // Cache is an interface that represents a cache. It has methods for setting, getting and deleting keys.

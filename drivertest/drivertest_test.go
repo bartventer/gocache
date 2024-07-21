@@ -8,7 +8,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
-	"github.com/bartventer/gocache/keymod"
+	"github.com/bartventer/gocache/pkg/keymod"
 )
 
 // Item is a cache Item.

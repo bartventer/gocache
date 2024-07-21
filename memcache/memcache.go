@@ -68,7 +68,7 @@ import (
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/gcerrors"
-	"github.com/bartventer/gocache/keymod"
+	"github.com/bartventer/gocache/pkg/keymod"
 	"github.com/bradfitz/gomemcache/memcache"
 )
 

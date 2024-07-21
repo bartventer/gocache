@@ -81,7 +81,7 @@ import (
 
 	cache "github.com/bartventer/gocache"
 	"github.com/bartventer/gocache/internal/gcerrors"
-	"github.com/bartventer/gocache/keymod"
+	"github.com/bartventer/gocache/pkg/keymod"
 )
 
 // Scheme is the cache scheme for the in-memory cache.
