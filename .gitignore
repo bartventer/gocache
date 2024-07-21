@@ -25,3 +25,6 @@ go.work.sum
 # Environment variables file
 .env
 tmp
+
+# Node
+node_modules
