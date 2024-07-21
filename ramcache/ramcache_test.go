@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
-	"github.com/bartventer/gocache/drivertest"
+	"github.com/bartventer/gocache/pkg/drivertest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

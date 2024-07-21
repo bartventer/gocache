@@ -7,7 +7,7 @@ import (
 	"time"
 
 	cache "github.com/bartventer/gocache"
-	"github.com/bartventer/gocache/drivertest"
+	"github.com/bartventer/gocache/pkg/drivertest"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/redis/go-redis/v9"
