@@ -12,29 +12,22 @@ on:
         types: [completed]
 
 jobs:
-    semantic-release:
-        name: Semantic Release
+    release:
+        name: Release
         runs-on: ubuntu-latest
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
-        strategy:
-            fail-fast: false
-            max-parallel: 1
-            matrix:
-                directory:
-                    - '.'
-                    - 'redis'
-                    - 'rediscluster'
-                    - 'ramcache'
-                    - 'memcache'
         permissions:
             contents: write
             issues: write
         steps:
             - uses: actions/checkout@v4
-            - name: 'Run semantic-release in "${{ matrix.directory }}"'
-              working-directory: ${{ matrix.directory }}
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: package.json
+                  cache: "yarn"
+                  cache-dependency-path: yarn.lock
+            - name: 'Run release'
+              shell: bash
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                  yarn global add semantic-release@17 @semantic-release/git
-                  semantic-release
+              run: make release
