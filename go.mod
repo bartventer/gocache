@@ -18,3 +18,5 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/stretchr/testify v1.9.0
 )
+
+retract [v1.0.0, v1.9.1] // Package not stable yet

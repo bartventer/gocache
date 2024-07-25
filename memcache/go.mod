@@ -73,4 +73,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-retract [v1.0.0, v1.5.0] // Incorrect module path
+retract [v1.0.0, v1.9.1] // Package not stable yet
