@@ -1,0 +1,12 @@
+{
+    "plugins": [
+        [
+            "@semantic-release/commit-analyzer",
+            {
+                "preset": "angular",
+                "releaseRules": "../scripts/release-rules.cjs"
+            }
+        ],
+        "@semantic-release/git"
+    ]
+}
