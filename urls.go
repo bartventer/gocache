@@ -28,6 +28,7 @@ var defaultURLMux = new(urlMux)
 
 // RegisterCache registers a [URLOpener] for a given scheme and type.
 // If a [URLOpener] is already registered for the scheme and type, it panics.
+// Not intended for direct application use.
 func RegisterCache[K driver.String](scheme string, opener URLOpener[K]) {
 	defaultURLMux.mu.Lock()
 	defer defaultURLMux.mu.Unlock()
@@ -51,7 +52,8 @@ func getTypeKey[K driver.String]() string {
 }
 
 // OpenGenericCache opens a [GenericCache] for the provided URL string and type.
-// It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the URL's scheme and type.
+// It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the
+// URL's scheme and type. Not intended for direct application use.
 func OpenGenericCache[K driver.String](ctx context.Context, urlstr string) (*GenericCache[K], error) {
 	u, err := url.Parse(urlstr)
 	if err != nil {
@@ -72,13 +74,15 @@ func OpenGenericCache[K driver.String](ctx context.Context, urlstr string) (*Gen
 }
 
 // OpenCache opens a [Cache] for the provided URL string.
-// It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the URL's scheme.
+// It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the URL'
+// s scheme.
 func OpenCache(ctx context.Context, urlstr string) (*Cache, error) {
 	return OpenGenericCache[string](ctx, urlstr)
 }
 
 // OpenKeyCache opens a [KeyCache] for the provided URL string.
-// It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the URL's scheme.
+// It returns an error if the URL cannot be parsed, or if no [URLOpener] is registered for the
+// URL's scheme.
 func OpenKeyCache(ctx context.Context, urlstr string) (*KeyCache, error) {
 	return OpenGenericCache[keymod.Key](ctx, urlstr)
 }
