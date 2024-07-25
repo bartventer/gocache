@@ -9,7 +9,13 @@
     }
   ],
   "plugins": [
-    "@semantic-release/commit-analyzer",
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "angular",
+        "releaseRules": "../scripts/release-rules.cjs"
+      }
+    ],
     "@semantic-release/git"
   ],
   "tagFormat": "memcache/v${version}"
