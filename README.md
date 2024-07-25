@@ -70,7 +70,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    c := redis.New(ctx, &redis.Options{
+    c := redis.New[string](ctx, &redis.Options{
         RedisOptions: &redis.RedisOptions{
             Addr: "localhost:7000",
             MaxRetries: 5,
@@ -118,7 +118,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    c := rediscluster.New(ctx, &rediscluster.Options{
+    c := rediscluster.New[string](ctx, &rediscluster.Options{
         ClusterOptions: &rediscluster.ClusterOptions{
             Addrs: []string{"localhost:7000", "localhost:7001", "localhost:7002"},
             MaxRetries: 5,
@@ -166,7 +166,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    c := memcache.New(ctx, &memcache.Options{
+    c := memcache.New[string](ctx, &memcache.Options{
         Addrs: []string{"localhost:11211"},
     })
     // ... use c with the cache.Cache interface
@@ -210,7 +210,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    c := ramcache.New(ctx, &ramcache.Options{
+    c := ramcache.New[string](ctx, &ramcache.Options{
         CleanupInterval: 1 * time.Minute,
     })
     // ... use c with the cache.Cache interface
