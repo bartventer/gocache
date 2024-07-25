@@ -44,7 +44,7 @@ You can create a Redis cache with [New]:
 
 	func main() {
 	    ctx := context.Background()
-	    c := redis.New(ctx, &redis.Options{
+	    c := redis.New[string](ctx, &redis.Options{
 	        RedisOptions: redis.RedisOptions{
 				Addr: "localhost:6379",
 				MaxRetries: 5,
@@ -75,19 +75,20 @@ import (
 const Scheme = "redis"
 
 func init() { //nolint:gochecknoinits // This is the entry point of the package.
-	cache.RegisterCache(Scheme, &redisCache{})
+	cache.RegisterCache(Scheme, &redisCache[string]{})
+	cache.RegisterCache(Scheme, &redisCache[keymod.Key]{})
 }
 
 // redisCache is a Redis implementation of the cache.Cache interface.
-type redisCache struct {
+type redisCache[K driver.String] struct {
 	once   sync.Once     // once ensures that the cache is initialized only once.
 	client *redis.Client // client is the Redis client.
 	config *Config       // config is the cache configuration.
 }
 
 // New returns a new Redis cache implementation.
-func New(ctx context.Context, opts *Options) *redisCache {
-	r := &redisCache{}
+func New[K driver.String](ctx context.Context, opts *Options) *redisCache[K] {
+	r := &redisCache[K]{}
 	if opts == nil {
 		opts = &Options{}
 	}
@@ -96,10 +97,11 @@ func New(ctx context.Context, opts *Options) *redisCache {
 }
 
 // Ensure RedisCache implements the cache.Cache interface.
-var _ driver.Cache = &redisCache{}
+var _ driver.Cache[string] = new(redisCache[string])
+var _ driver.Cache[keymod.Key] = new(redisCache[keymod.Key])
 
 // OpenCacheURL implements [cache.URLOpener].
-func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.Cache, error) {
+func (r *redisCache[K]) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.GenericCache[K], error) {
 	opts, err := optionsFromURL(u)
 	if err != nil {
 		return nil, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error parsing URL: %w", err))
@@ -108,7 +110,7 @@ func (r *redisCache) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.Cache
 	return cache.NewCache(r), nil
 }
 
-func (r *redisCache) init(_ context.Context, config *Config, options *redis.Options) {
+func (r *redisCache[K]) init(_ context.Context, config *Config, options *redis.Options) {
 	r.once.Do(func() {
 		if config == nil {
 			config = &Config{}
@@ -120,10 +122,9 @@ func (r *redisCache) init(_ context.Context, config *Config, options *redis.Opti
 }
 
 // Count implements cache.Cache.
-func (r *redisCache) Count(ctx context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
-	pattern = keymod.Modify(pattern, modifiers...)
+func (r *redisCache[K]) Count(ctx context.Context, pattern K) (int64, error) {
 	var count int64
-	iter := r.client.Scan(ctx, 0, pattern, r.config.CountLimit).Iterator()
+	iter := r.client.Scan(ctx, 0, string(pattern), r.config.CountLimit).Iterator()
 	for iter.Next(ctx) {
 		count++
 	}
@@ -134,9 +135,8 @@ func (r *redisCache) Count(ctx context.Context, pattern string, modifiers ...key
 }
 
 // Exists implements cache.Cache.
-func (r *redisCache) Exists(ctx context.Context, key string, modifiers ...keymod.Mod) (bool, error) {
-	key = keymod.Modify(key, modifiers...)
-	n, err := r.client.Exists(ctx, key).Result()
+func (r *redisCache[K]) Exists(ctx context.Context, key K) (bool, error) {
+	n, err := r.client.Exists(ctx, string(key)).Result()
 	if err != nil {
 		return false, gcerrors.NewWithScheme(Scheme, fmt.Errorf("error checking key %s: %w", key, err))
 	}
@@ -144,9 +144,8 @@ func (r *redisCache) Exists(ctx context.Context, key string, modifiers ...keymod
 }
 
 // Del implements cache.Cache.
-func (r *redisCache) Del(ctx context.Context, key string, modifiers ...keymod.Mod) error {
-	key = keymod.Modify(key, modifiers...)
-	delCount, err := r.client.Del(ctx, key).Result()
+func (r *redisCache[K]) Del(ctx context.Context, key K) error {
+	delCount, err := r.client.Del(ctx, string(key)).Result()
 	if err != nil {
 		return gcerrors.NewWithScheme(Scheme, fmt.Errorf("error deleting key %s: %w", key, err))
 	}
@@ -157,9 +156,8 @@ func (r *redisCache) Del(ctx context.Context, key string, modifiers ...keymod.Mo
 }
 
 // DelKeys implements cache.Cache.
-func (r *redisCache) DelKeys(ctx context.Context, pattern string, modifiers ...keymod.Mod) error {
-	pattern = keymod.Modify(pattern, modifiers...)
-	iter := r.client.Scan(ctx, 0, pattern, r.config.CountLimit).Iterator()
+func (r *redisCache[K]) DelKeys(ctx context.Context, pattern K) error {
+	iter := r.client.Scan(ctx, 0, string(pattern), r.config.CountLimit).Iterator()
 	var keys []string
 	for iter.Next(ctx) {
 		keys = append(keys, iter.Val())
@@ -177,14 +175,13 @@ func (r *redisCache) DelKeys(ctx context.Context, pattern string, modifiers ...k
 }
 
 // Clear implements cache.Cache.
-func (r *redisCache) Clear(ctx context.Context) error {
+func (r *redisCache[K]) Clear(ctx context.Context) error {
 	return r.client.FlushDB(ctx).Err()
 }
 
 // Get implements cache.Cache.
-func (r *redisCache) Get(ctx context.Context, key string, modifiers ...keymod.Mod) ([]byte, error) {
-	key = keymod.Modify(key, modifiers...)
-	val, err := r.client.Get(ctx, key).Bytes()
+func (r *redisCache[K]) Get(ctx context.Context, key K) ([]byte, error) {
+	val, err := r.client.Get(ctx, string(key)).Bytes()
 	if err != nil {
 		if err == redis.Nil {
 			return nil, gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found: %w", key, err)))
@@ -196,23 +193,21 @@ func (r *redisCache) Get(ctx context.Context, key string, modifiers ...keymod.Mo
 }
 
 // Set implements cache.Cache.
-func (r *redisCache) Set(ctx context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
-	key = keymod.Modify(key, modifiers...)
-	return r.client.Set(ctx, key, value, 0).Err()
+func (r *redisCache[K]) Set(ctx context.Context, key K, value interface{}) error {
+	return r.client.Set(ctx, string(key), value, 0).Err()
 }
 
 // SetWithTTL implements cache.Cache.
-func (r *redisCache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
-	key = keymod.Modify(key, modifiers...)
-	return r.client.Set(ctx, key, value, ttl).Err()
+func (r *redisCache[K]) SetWithTTL(ctx context.Context, key K, value interface{}, ttl time.Duration) error {
+	return r.client.Set(ctx, string(key), value, ttl).Err()
 }
 
 // Close implements cache.Cache.
-func (r *redisCache) Close() error {
+func (r *redisCache[K]) Close() error {
 	return r.client.Close()
 }
 
 // Ping implements cache.Cache.
-func (r *redisCache) Ping(ctx context.Context) error {
+func (r *redisCache[K]) Ping(ctx context.Context) error {
 	return r.client.Ping(ctx).Err()
 }

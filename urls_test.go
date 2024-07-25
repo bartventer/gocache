@@ -5,11 +5,14 @@ import (
 	"errors"
 	"net/url"
 	"testing"
+
+	"github.com/bartventer/gocache/pkg/driver"
+	"github.com/bartventer/gocache/pkg/keymod"
 )
 
-type mockURLOpener struct{}
+type mockURLOpener[K driver.String] struct{}
 
-func (m *mockURLOpener) OpenCacheURL(ctx context.Context, u *url.URL) (*Cache, error) {
+func (m *mockURLOpener[K]) OpenCacheURL(ctx context.Context, u *url.URL) (*GenericCache[K], error) {
 	if u.Scheme == "err" {
 		return nil, errors.New("forced error")
 	}
@@ -18,11 +21,9 @@ func (m *mockURLOpener) OpenCacheURL(ctx context.Context, u *url.URL) (*Cache, e
 
 func TestCache(t *testing.T) {
 	ctx := context.Background()
-	mux := new(urlMux)
-
-	fake := &mockURLOpener{}
-	mux.RegisterCache("foo", fake)
-	mux.RegisterCache("err", fake)
+	fake := &mockURLOpener[string]{}
+	RegisterCache("foo", fake)
+	RegisterCache("err", fake)
 
 	for _, tc := range []struct {
 		name    string
@@ -63,7 +64,7 @@ func TestCache(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, gotErr := mux.OpenCache(ctx, tc.url)
+			_, gotErr := OpenGenericCache[string](ctx, tc.url)
 			if (gotErr != nil) != tc.wantErr {
 				t.Fatalf("got err %v, want error %v", gotErr, tc.wantErr)
 			}
@@ -72,12 +73,16 @@ func TestCache(t *testing.T) {
 }
 
 func TestRegisterCache(t *testing.T) {
-	fake := &mockURLOpener{}
+	fake := &mockURLOpener[string]{}
 
 	// Test registering a new scheme.
 	RegisterCache("new", fake)
 
-	// Test registering an existing scheme, should panic.
+	// Register same scheme but with different type.
+	fake2 := &mockURLOpener[keymod.Key]{}
+	RegisterCache("new", fake2)
+
+	// Test registering an existing scheme and type. Should panic.
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("The code did not panic")
@@ -88,18 +93,18 @@ func TestRegisterCache(t *testing.T) {
 
 func TestOpenCache(t *testing.T) {
 	ctx := context.Background()
-	fake := &mockURLOpener{}
-	RegisterCache("foo", fake)
+	fake := &mockURLOpener[string]{}
 
-	// Test opening a registered scheme.
-	_, err := OpenCache(ctx, "foo://mycache")
+	// Test opening a cache with a valid scheme.
+	RegisterCache("baz", fake)
+	_, err := OpenGenericCache[string](ctx, "baz://mycache")
 	if err != nil {
-		t.Errorf("OpenCache() error = %v, want nil", err)
+		t.Fatalf("Failed to open cache: %v", err)
 	}
 
-	// Test opening an unregistered scheme, should return an error.
-	_, err = OpenCache(ctx, "bar://mycache")
+	// Test opening a cache with a valid scheme and invalid type.
+	_, err = OpenGenericCache[keymod.Key](ctx, "baz://mycache")
 	if err == nil {
-		t.Errorf("OpenCache() error = nil, want non-nil")
+		t.Fatalf("Expected error, got nil")
 	}
 }

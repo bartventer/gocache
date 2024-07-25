@@ -29,9 +29,9 @@ type Options struct {
 
 // Harness descibes the functionality test harnesses must provide to run
 // conformance tests.
-type Harness interface {
+type Harness[K driver.String] interface {
 	// MakeCache makes a [driver.Cache] for testing.
-	MakeCache(context.Context) (driver.Cache, error)
+	MakeCache(context.Context) (driver.Cache[K], error)
 
 	// Close closes resources used by the harness.
 	Close()
@@ -42,10 +42,10 @@ type Harness interface {
 
 // HarnessMaker describes functions that construct a harness for running tests.
 // It is called exactly once per test; Harness.Close() will be called when the test is complete.
-type HarnessMaker func(ctx context.Context, t *testing.T) (Harness, error)
+type HarnessMaker[K driver.String, TB testing.TB] func(ctx context.Context, t TB) (Harness[K], error)
 
-// RunConformanceTests runs conformance tests for driver implementations of the [cache.Cache] interface.
-func RunConformanceTests(t *testing.T, newHarness HarnessMaker) {
+// RunConformanceTests runs conformance tests for driver implementations of the [cache.Cache[K]] interface.
+func RunConformanceTests[K driver.String](t *testing.T, newHarness HarnessMaker[K, *testing.T]) {
 	t.Helper()
 
 	t.Run("Set", func(t *testing.T) { withCache(t, newHarness, testSet) })
@@ -61,8 +61,9 @@ func RunConformanceTests(t *testing.T, newHarness HarnessMaker) {
 }
 
 // withCache creates a new cache and runs the test function.
-func withCache(t *testing.T, newHarness HarnessMaker, f func(*testing.T, *cache.Cache, Options)) {
+func withCache[K driver.String](t *testing.T, newHarness HarnessMaker[K, *testing.T], f func(*testing.T, *cache.GenericCache[K], Options)) {
 	t.Helper()
+	t.Parallel()
 
 	ctx := context.Background()
 	h, err := newHarness(ctx, t)
@@ -77,16 +78,16 @@ func withCache(t *testing.T, newHarness HarnessMaker, f func(*testing.T, *cache.
 	f(t, cache.NewCache(c), h.Options())
 }
 
-// uniqueKey returns a unique key for the test.
-func uniqueKey(t *testing.T) string {
+// makeKey creates a unique key for the test.
+func makeKey[K driver.String](t *testing.T) K {
 	t.Helper()
-	return fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano())
+	key := fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano())
+	return K(key)
 }
 
 // testSet tests the Set method of the cache.
-func testSet(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-	key := uniqueKey(t)
+func testSet[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
+	key := makeKey[K](t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -101,9 +102,8 @@ func testSet(t *testing.T, c *cache.Cache, opts Options) {
 }
 
 // testSetWithTTL tests the SetWithTTL method of the cache.
-func testSetWithTTL(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-	key := uniqueKey(t)
+func testSetWithTTL[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
+	key := makeKey[K](t)
 	value := "testValue"
 	ttl := 1 * time.Second
 
@@ -126,9 +126,8 @@ func testSetWithTTL(t *testing.T, c *cache.Cache, opts Options) {
 }
 
 // testExists tests the Exists method of the cache.
-func testExists(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-	key := uniqueKey(t)
+func testExists[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
+	key := makeKey[K](t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -143,9 +142,8 @@ func testExists(t *testing.T, c *cache.Cache, opts Options) {
 }
 
 // testCount tests the Count method of the cache.
-func testCount(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-	key := uniqueKey(t)
+func testCount[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
+	key := makeKey[K](t)
 	value := "testValue"
 
 	if opts.PatternMatchingDisabled {
@@ -167,9 +165,8 @@ func testCount(t *testing.T, c *cache.Cache, opts Options) {
 }
 
 // testGet tests the Get method of the cache.
-func testGet(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-	key := uniqueKey(t)
+func testGet[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
+	key := makeKey[K](t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -184,9 +181,8 @@ func testGet(t *testing.T, c *cache.Cache, opts Options) {
 }
 
 // testDel tests the Del method of the cache.
-func testDel(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-	key := uniqueKey(t)
+func testDel[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
+	key := makeKey[K](t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -206,47 +202,44 @@ func testDel(t *testing.T, c *cache.Cache, opts Options) {
 }
 
 // testDelKeys tests the DelKeys method of the cache.
-func testDelKeys(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
+func testDelKeys[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
 	keys := []string{"testKey1", "testKey2", "testKey3", "testKey4", "testKey5"}
-	hashTag := uniqueKey(t)
+	hashTag := makeKey[K](t)
 
 	if opts.PatternMatchingDisabled {
-		err := c.DelKeys(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
+		err := c.DelKeys(context.Background(), K(keymod.Key("testKey*").TagPrefix(string(hashTag))))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), cache.ErrPatternMatchingNotSupported.Error())
 		return
 	}
 
 	for _, key := range keys {
-		if err := c.Set(context.Background(), key, "testValue", keymod.WithHashTag(hashTag)); err != nil {
+		if err := c.Set(context.Background(), K(keymod.Key(key).TagPrefix(string(hashTag))), "testValue"); err != nil {
 			t.Fatalf("Failed to set key: %v", err)
 		}
 	}
 
-	count, err := c.Count(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
+	count, err := c.Count(context.Background(), K(keymod.Key("testKey*").TagPrefix(string(hashTag))))
 	require.NoError(t, err)
 	if !assert.Equal(t, int64(5), count) {
 		t.FailNow()
 	}
 
-	err = c.DelKeys(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
+	err = c.DelKeys(context.Background(), K(keymod.Key("testKey*").TagPrefix(string(hashTag))))
 	require.NoError(t, err)
 
-	res, err := c.Count(context.Background(), "testKey*", keymod.WithHashTag(hashTag))
+	res, err := c.Count(context.Background(), K(keymod.Key("testKey*").TagPrefix(string(hashTag))))
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), res)
 
 	// Non-existent key
-	err = c.DelKeys(context.Background(), "nonExistentKey*", keymod.WithHashTag(hashTag))
+	err = c.DelKeys(context.Background(), K(keymod.Key("nonExistentKey*").TagPrefix(string(hashTag))))
 	require.NoError(t, err)
 }
 
 // testClear tests the Clear method of the cache.
-func testClear(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-
-	key := uniqueKey(t)
+func testClear[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
+	key := makeKey[K](t)
 	value := "testValue"
 
 	err := c.Set(context.Background(), key, value)
@@ -261,16 +254,13 @@ func testClear(t *testing.T, c *cache.Cache, opts Options) {
 }
 
 // testPing tests the Ping method of the cache.
-func testPing(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
+func testPing[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
 	err := c.Ping(context.Background())
 	require.NoError(t, err)
 }
 
 // testClose tests the Close method of the cache.
-func testClose(t *testing.T, c *cache.Cache, opts Options) {
-	t.Parallel()
-
+func testClose[K driver.String](t *testing.T, c *cache.GenericCache[K], opts Options) {
 	err := c.Close()
 	require.NoError(t, err)
 

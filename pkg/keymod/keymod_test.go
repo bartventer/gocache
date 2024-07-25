@@ -2,104 +2,48 @@ package keymod
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestWithHashTag(t *testing.T) {
-	tests := []struct {
-		name     string
-		text     string
-		key      string
-		expected string
-	}{
-		{"No brackets in key or hashTag", "tag", "key", "{tag}key"},
-		{"Brackets in key", "tag", "{key}", "{tag}{key}"},
-		{"Brackets in hashTag", "{tag}", "key", "{tag}key"},
-		{"Brackets in key and hashTag", "{tag}", "{key}", "{tag}{key}"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			modifier := WithHashTag(tt.text)
-			assert.Equal(t, tt.expected, modifier(tt.key))
-		})
+func TestKey_String(t *testing.T) {
+	k := Key("mykey")
+	expected := "mykey"
+	if k.String() != expected {
+		t.Errorf("expected %s, got %s", expected, k.String())
 	}
 }
 
-func TestWithPrefix(t *testing.T) {
-	tests := []struct {
-		name     string
-		prefix   string
-		key      string
-		expected string
-	}{
-		{"No prefix", "", "key", "key"},
-		{"With prefix", "prefix", "key", "prefix:key"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			modifier := WithPrefix(tt.prefix, ":")
-			assert.Equal(t, tt.expected, modifier(tt.key))
-		})
+func TestKey_Prefix(t *testing.T) {
+	k := Key("mykey")
+	prefixed := k.Prefix("prefix_")
+	expected := Key("prefix_mykey")
+	if prefixed != expected {
+		t.Errorf("expected %s, got %s", expected, prefixed)
 	}
 }
 
-func TestWithSuffix(t *testing.T) {
-	tests := []struct {
-		name     string
-		suffix   string
-		key      string
-		expected string
-	}{
-		{"No suffix", "", "key", "key"},
-		{"With suffix", "suffix", "key", "key:suffix"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			modifier := WithSuffix(tt.suffix, ":")
-			assert.Equal(t, tt.expected, modifier(tt.key))
-		})
+func TestKey_Suffix(t *testing.T) {
+	k := Key("mykey")
+	suffixed := k.Suffix("_suffix")
+	expected := Key("mykey_suffix")
+	if suffixed != expected {
+		t.Errorf("expected %s, got %s", expected, suffixed)
 	}
 }
 
-func TestWithChain(t *testing.T) {
-	tests := []struct {
-		name      string
-		key       string
-		modifiers []Mod
-		expected  string
-	}{
-		{"No modifiers", "key", []Mod{}, "key"},
-		{"One modifier", "key", []Mod{WithHashTag("tag")}, "{tag}key"},
-		{"Multiple modifiers", "key", []Mod{WithHashTag("tag1"), WithPrefix("prefix", ":")}, "prefix:{tag1}key"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			modifier := WithChain(tt.modifiers...)
-			assert.Equal(t, tt.expected, modifier(tt.key))
-		})
+func TestKey_TagPrefix(t *testing.T) {
+	k := Key("mykey")
+	tagPrefixed := k.TagPrefix("tag")
+	expected := Key("{tag}mykey")
+	if tagPrefixed != expected {
+		t.Errorf("expected %s, got %s", expected, tagPrefixed)
 	}
 }
 
-func TestModify(t *testing.T) {
-	tests := []struct {
-		name      string
-		key       string
-		modifiers []Mod
-		expected  string
-	}{
-		{"No modifiers", "key", []Mod{}, "key"},
-		{"One modifier", "key", []Mod{WithHashTag("tag")}, "{tag}key"},
-		{"Multiple modifiers", "key", []Mod{WithHashTag("tag1"), WithHashTag("tag2")}, "{tag2}{tag1}key"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, Modify(tt.key, tt.modifiers...))
-		})
+func TestKey_TagSuffix(t *testing.T) {
+	k := Key("mykey")
+	tagSuffixed := k.TagSuffix("tag")
+	expected := Key("mykey{tag}")
+	if tagSuffixed != expected {
+		t.Errorf("expected %s, got %s", expected, tagSuffixed)
 	}
 }

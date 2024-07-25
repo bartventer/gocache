@@ -23,8 +23,7 @@ const (
 )
 
 func TestRedisCache_OpenCacheURL(t *testing.T) {
-	t.Parallel()
-	r := &redisCache{}
+	r := &redisCache[string]{}
 
 	u, err := url.Parse("redis://" + defaultAddr + "?maxretries=5&minretrybackoff=1000ms")
 	require.NoError(t, err)
@@ -35,9 +34,8 @@ func TestRedisCache_OpenCacheURL(t *testing.T) {
 }
 
 func TestRedisCache_New(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
-	r := New(ctx, &Options{
+	r := New[string](ctx, &Options{
 		RedisOptions: RedisOptions{
 			Addr: defaultAddr,
 		},
@@ -47,7 +45,7 @@ func TestRedisCache_New(t *testing.T) {
 }
 
 // setupCache creates a new Redis cache with a test container.
-func setupCache(t *testing.T) *redisCache {
+func setupCache[K driver.String](t *testing.T) *redisCache[K] {
 	t.Helper()
 	// Create a new Redis container
 	ctx := context.Background()
@@ -97,35 +95,35 @@ func setupCache(t *testing.T) *redisCache {
 	if err != nil {
 		t.Fatalf("Failed to ping Redis container: %v", err)
 	}
-	return &redisCache{client: client, config: &Config{CountLimit: 100}}
+	return &redisCache[K]{client: client, config: &Config{CountLimit: 100}}
 }
 
-type harness struct {
-	cache *redisCache
+type harness[K driver.String] struct {
+	cache *redisCache[K]
 }
 
-func (h *harness) MakeCache(ctx context.Context) (driver.Cache, error) {
+func (h *harness[K]) MakeCache(ctx context.Context) (driver.Cache[K], error) {
 	return h.cache, nil
 }
 
-func (h *harness) Close() {
+func (h *harness[K]) Close() {
 	// Cleanup is handled in setup function
 }
 
-func (h *harness) Options() drivertest.Options {
+func (h *harness[K]) Options() drivertest.Options {
 	return drivertest.Options{
 		PatternMatchingDisabled: false,
 		CloseIsNoop:             false,
 	}
 }
 
-func newHarness(ctx context.Context, t *testing.T) (drivertest.Harness, error) {
-	cache := setupCache(t)
-	return &harness{
+func newHarness[K driver.String](ctx context.Context, t *testing.T) (drivertest.Harness[K], error) {
+	cache := setupCache[K](t)
+	return &harness[K]{
 		cache: cache,
 	}, nil
 }
 
 func TestConformance(t *testing.T) {
-	drivertest.RunConformanceTests(t, newHarness)
+	drivertest.RunConformanceTests(t, newHarness[string])
 }

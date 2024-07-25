@@ -25,8 +25,8 @@ type FakeOptions struct {
 	TLSConfig       *tls.Config
 }
 
-func TestNewURLParser(t *testing.T) {
-	parser := NewURLParser()
+func TestNew(t *testing.T) {
+	parser := New()
 	if parser == nil {
 		t.Errorf("NewURLParser() = nil, want non-nil")
 	}
@@ -43,7 +43,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 	type args struct {
 		u                 *url.URL
 		options           interface{}
-		paramKeyBlacklist map[string]bool
+		paramKeyBlacklist map[string]struct{}
 	}
 	tests := []struct {
 		name    string
@@ -56,7 +56,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			args: args{
 				u:                 mustParseURL("fake://localhost:6379?maxretries=5&minretrybackoff=512ms"),
 				options:           &FakeOptions{},
-				paramKeyBlacklist: map[string]bool{"db": true},
+				paramKeyBlacklist: map[string]struct{}{"db": {}},
 			},
 			want: &FakeOptions{
 				MaxRetries:      5,
@@ -69,7 +69,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			args: args{
 				u:                 mustParseURL("fake://localhost:6379?addr=someotherhost:6379"),
 				options:           &FakeOptions{},
-				paramKeyBlacklist: map[string]bool{"addr": true},
+				paramKeyBlacklist: map[string]struct{}{"addr": {}},
 			},
 			want:    &FakeOptions{},
 			wantErr: false,
@@ -79,7 +79,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			args: args{
 				u:                 mustParseURL("fake://localhost:6379?maxretries=invalid"),
 				options:           &FakeOptions{},
-				paramKeyBlacklist: map[string]bool{},
+				paramKeyBlacklist: map[string]struct{}{},
 			},
 			want:    &FakeOptions{},
 			wantErr: true,
@@ -89,7 +89,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			args: args{
 				u:                 mustParseURL("fake://localhost:6379?cert=" + url.QueryEscape(testCertPEM)),
 				options:           &FakeOptions{},
-				paramKeyBlacklist: map[string]bool{},
+				paramKeyBlacklist: map[string]struct{}{},
 			},
 			want: &FakeOptions{
 				Cert: mustParseCertificate(testCertPEM),
@@ -101,7 +101,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			args: args{
 				u:                 mustParseURL("fake://localhost:6379?tlsconfig=" + url.QueryEscape(testTLSConfigJSON)),
 				options:           &FakeOptions{},
-				paramKeyBlacklist: map[string]bool{},
+				paramKeyBlacklist: map[string]struct{}{},
 			},
 			want: &FakeOptions{
 				TLSConfig: mustUnmarshalTLSConfig(testTLSConfigJSON),
@@ -113,7 +113,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			args: args{
 				u:                 mustParseURL("fake://localhost:6379?tlsconfig=" + url.QueryEscape(testTLSConfigJSON)),
 				options:           FakeOptions{}, // non-pointer destination, should return mapstructure error
-				paramKeyBlacklist: map[string]bool{},
+				paramKeyBlacklist: map[string]struct{}{},
 			},
 			want:    &FakeOptions{},
 			wantErr: true,
@@ -123,7 +123,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 			args: args{
 				u:                 mustParseURL("fake://localhost:6379?name=TestName"),
 				options:           &FakeOptions{},
-				paramKeyBlacklist: map[string]bool{},
+				paramKeyBlacklist: map[string]struct{}{},
 			},
 			want: &FakeOptions{
 				Embedded: Embedded{
@@ -134,7 +134,7 @@ func TestURLParser_OptionsFromURL(t *testing.T) {
 		},
 	}
 
-	parser := NewURLParser(
+	parser := New(
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
 		mapstructure.StringToTimeHookFunc(time.RFC3339),

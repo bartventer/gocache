@@ -7,7 +7,7 @@ import (
 )
 
 // paramKeyBlacklist is a list of keys that should not be set on the Options.
-var paramKeyBlacklist = map[string]bool{
+var paramKeyBlacklist = map[string]struct{}{
 	// placeholder for future options
 }
 
@@ -29,7 +29,7 @@ func optionsFromURL(u *url.URL) (Options, error) {
 	var opts Options
 
 	// Parse the query parameters into a map
-	parser := urlparser.NewURLParser()
+	parser := urlparser.New()
 	if err := parser.OptionsFromURL(u, &opts, paramKeyBlacklist); err != nil {
 		return Options{}, err
 	}

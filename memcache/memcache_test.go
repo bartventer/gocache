@@ -24,8 +24,7 @@ const (
 )
 
 func TestMemcacheCache_OpenCacheURL(t *testing.T) {
-	t.Parallel()
-	m := &memcacheCache{}
+	m := &memcacheCache[string]{}
 
 	u, err := url.Parse("memcache://" + defaultAddr)
 	require.NoError(t, err)
@@ -36,10 +35,9 @@ func TestMemcacheCache_OpenCacheURL(t *testing.T) {
 }
 
 func TestMemcacheCache_New(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 
-	m := New(ctx, &Options{
+	m := New[string](ctx, &Options{
 		Addrs: []string{defaultAddr},
 	})
 	require.NotNil(t, m)
@@ -47,7 +45,7 @@ func TestMemcacheCache_New(t *testing.T) {
 }
 
 // setupCache creates a new Memcached container.
-func setupCache(t *testing.T) *memcacheCache {
+func setupCache[K driver.String](t *testing.T) *memcacheCache[K] {
 	t.Helper()
 	// Create a new Memcached container
 	ctx := context.Background()
@@ -92,12 +90,12 @@ func setupCache(t *testing.T) *memcacheCache {
 	if err != nil {
 		t.Fatalf("Failed to ping Memcached container: %v", err)
 	}
-	return &memcacheCache{client: client}
+	return &memcacheCache[K]{client: client}
 }
 
 func TestMemcacheCache_MalformedKey(t *testing.T) {
 	t.Parallel()
-	c := setupCache(t)
+	c := setupCache[string](t)
 	// malformedKey is a key that is too long which will trigger the [memcache.ErrMalformedKey] error.
 	malformedKey := strings.Repeat("a", 251)
 	value := "testValue"
@@ -123,32 +121,32 @@ func TestMemcacheCache_MalformedKey(t *testing.T) {
 	assert.Contains(t, err.Error(), memcache.ErrMalformedKey.Error())
 }
 
-type harness struct {
-	cache *memcacheCache
+type harness[K driver.String] struct {
+	cache *memcacheCache[K]
 }
 
-func (h *harness) MakeCache(ctx context.Context) (driver.Cache, error) {
+func (h *harness[K]) MakeCache(ctx context.Context) (driver.Cache[K], error) {
 	return h.cache, nil
 }
 
-func (h *harness) Close() {
+func (h *harness[K]) Close() {
 	// Cleanup is handled in setup function
 }
 
-func (h *harness) Options() drivertest.Options {
+func (h *harness[K]) Options() drivertest.Options {
 	return drivertest.Options{
 		PatternMatchingDisabled: true, // Memcached does not support pattern matching
 		CloseIsNoop:             true, // Cache can still be used after closing
 	}
 }
 
-func newHarness(ctx context.Context, t *testing.T) (drivertest.Harness, error) {
-	cache := setupCache(t)
-	return &harness{
+func newHarness[K driver.String](ctx context.Context, t *testing.T) (drivertest.Harness[K], error) {
+	cache := setupCache[K](t)
+	return &harness[K]{
 		cache: cache,
 	}, nil
 }
 
 func TestConformance(t *testing.T) {
-	drivertest.RunConformanceTests(t, newHarness)
+	drivertest.RunConformanceTests(t, newHarness[string])
 }

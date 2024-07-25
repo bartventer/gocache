@@ -10,14 +10,14 @@ import (
 )
 
 // paramKeyBlacklist is a list of keys that should not be set on the Redis Cluster options.
-var paramKeyBlacklist = map[string]bool{
-	"addrs":                      true,
-	"newclient":                  true,
-	"clusterslots":               true,
-	"dialer":                     true,
-	"onconnect":                  true,
-	"credentialsprovider":        true,
-	"credentialsprovidercontext": true,
+var paramKeyBlacklist = map[string]struct{}{
+	"addrs":                      {},
+	"newclient":                  {},
+	"clusterslots":               {},
+	"dialer":                     {},
+	"onconnect":                  {},
+	"credentialsprovider":        {},
+	"credentialsprovidercontext": {},
 }
 
 // optionsFromURL parses a [url.URL] into [redis.ClusterOptions].
@@ -41,7 +41,7 @@ func optionsFromURL(u *url.URL) (Options, error) {
 	var opts Options
 
 	// Parse the query parameters into a map
-	parser := urlparser.NewURLParser(
+	parser := urlparser.New(
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
 		mapstructure.StringToTimeHookFunc(time.RFC3339),

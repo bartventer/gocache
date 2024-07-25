@@ -61,10 +61,10 @@ func newDecoderConfig(decodeHooks ...mapstructure.DecodeHookFunc) *mapstructure.
 	return config
 }
 
-// NewURLParser creates a new [urlParser] with the given [mapstructure.DecodeHookFunc] hooks.
+// New creates a new [urlParser] with the given [mapstructure.DecodeHookFunc] hooks.
 // Decode hooks are functions that can convert query parameters into specific types.
 // They are called in the order they are provided.
-func NewURLParser(decodeHooks ...mapstructure.DecodeHookFunc) *urlParser {
+func New(decodeHooks ...mapstructure.DecodeHookFunc) *urlParser {
 	u := &urlParser{}
 	u.init(decodeHooks...)
 	return u
@@ -86,6 +86,11 @@ func (p *urlParser) init(decodeHooks ...mapstructure.DecodeHookFunc) {
 			}
 		}
 	})
+}
+
+func inBlacklist(bl map[string]struct{}, key string) bool {
+	_, ok := bl[strings.ToLower(key)]
+	return ok
 }
 
 // OptionsFromURL parses the query parameters from the given [url.URL] into the provided
@@ -114,10 +119,13 @@ func (p *urlParser) init(decodeHooks ...mapstructure.DecodeHookFunc) {
 //		MinRetryBackoff: 512 * time.Millisecond,
 //		DB:              0, // db is blacklisted and not set
 //	}
-func (p *urlParser) OptionsFromURL(u *url.URL, options interface{}, paramKeyBlacklist map[string]bool) error {
+func (p *urlParser) OptionsFromURL(u *url.URL, options interface{}, paramKeyBlacklist map[string]struct{}) error {
 	// Parse the query parameters into a map
 	queryParams := make(map[string]string)
 	for key, values := range u.Query() {
+		if inBlacklist(paramKeyBlacklist, key) {
+			continue
+		}
 		if len(values) > 0 {
 			queryParams[key] = values[0]
 		}
@@ -129,7 +137,7 @@ func (p *urlParser) OptionsFromURL(u *url.URL, options interface{}, paramKeyBlac
 	config.Result = options
 	config.Metadata = metadata
 	config.MatchName = func(mapKey, fieldName string) bool {
-		return strings.EqualFold(mapKey, fieldName) && !paramKeyBlacklist[mapKey]
+		return strings.EqualFold(mapKey, fieldName) && !inBlacklist(paramKeyBlacklist, mapKey)
 	}
 
 	decoder, err := mapstructure.NewDecoder(config)

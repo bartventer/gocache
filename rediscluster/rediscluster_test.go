@@ -26,9 +26,8 @@ var exposedPorts = []string{
 	"7005",
 }
 
-func TestRedisCache_OpenCacheURL(t *testing.T) {
-	t.Parallel()
-	r := &redisClusterCache{}
+func TestRedisClusterCache_OpenCacheURL(t *testing.T) {
+	r := &redisClusterCache[string]{}
 
 	u, err := url.Parse("rediscluster://localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005?maxretries=5&minretrybackoff=1000ms")
 	require.NoError(t, err)
@@ -38,10 +37,9 @@ func TestRedisCache_OpenCacheURL(t *testing.T) {
 	assert.NotNil(t, r.client)
 }
 
-func TestRedisCache_New(t *testing.T) {
-	t.Parallel()
+func TestRedisClusterCache_New(t *testing.T) {
 	ctx := context.Background()
-	r := New(ctx, &Options{
+	r := New[string](ctx, &Options{
 		ClusterOptions: redis.ClusterOptions{
 			Addrs: []string{
 				"localhost:7000",
@@ -58,7 +56,7 @@ func TestRedisCache_New(t *testing.T) {
 }
 
 // setupRedisCluster creates a new Redis cluster container.
-func setupCache(t *testing.T) *redisClusterCache {
+func setupCache[K driver.String](t *testing.T) *redisClusterCache[K] {
 	t.Helper()
 	// Create a new Redis cluster container
 	ctx := context.Background()
@@ -114,35 +112,35 @@ func setupCache(t *testing.T) *redisClusterCache {
 	if err != nil {
 		t.Fatalf("Failed to ping Redis cluster container: %v", err)
 	}
-	return &redisClusterCache{client: client, config: &Config{CountLimit: 100}}
+	return &redisClusterCache[K]{client: client, config: &Config{CountLimit: 100}}
 }
 
-type harness struct {
-	cache *redisClusterCache
+type harness[K driver.String] struct {
+	cache *redisClusterCache[K]
 }
 
-func (h *harness) MakeCache(ctx context.Context) (driver.Cache, error) {
+func (h *harness[K]) MakeCache(ctx context.Context) (driver.Cache[K], error) {
 	return h.cache, nil
 }
 
-func (h *harness) Close() {
+func (h *harness[K]) Close() {
 	// Cleanup is handled in setup function
 }
 
-func (h *harness) Options() drivertest.Options {
+func (h *harness[K]) Options() drivertest.Options {
 	return drivertest.Options{
 		PatternMatchingDisabled: false,
 		CloseIsNoop:             false,
 	}
 }
 
-func newHarness(ctx context.Context, t *testing.T) (drivertest.Harness, error) {
-	cache := setupCache(t)
-	return &harness{
+func newHarness[K driver.String](ctx context.Context, t *testing.T) (drivertest.Harness[K], error) {
+	cache := setupCache[K](t)
+	return &harness[K]{
 		cache: cache,
 	}, nil
 }
 
 func TestConformance(t *testing.T) {
-	drivertest.RunConformanceTests(t, newHarness)
+	drivertest.RunConformanceTests(t, newHarness[string])
 }

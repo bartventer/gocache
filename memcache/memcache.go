@@ -43,7 +43,7 @@ You can create a Memcache cache with [New]:
 
 	func main() {
 	    ctx := context.Background()
-	    c := memcache.New(ctx, &memcache.Options{
+	    c := memcache.New[string](ctx, &memcache.Options{
 			Addrs: []string{"localhost:11211"},
 		})
 	    // ... use c with the cache.Cache interface
@@ -77,33 +77,35 @@ import (
 const Scheme = "memcache"
 
 func init() { //nolint:gochecknoinits // This is the entry point of the package.
-	cache.RegisterCache(Scheme, &memcacheCache{})
+	cache.RegisterCache(Scheme, &memcacheCache[string]{})
+	cache.RegisterCache(Scheme, &memcacheCache[keymod.Key]{})
 }
 
 // memcacheCache is a Memcache implementation of the cache.Cache interface.
-type memcacheCache struct {
+type memcacheCache[K driver.String] struct {
 	once   sync.Once        // once ensures that the cache is initialized only once.
 	client *memcache.Client // client is the Memcache client.
 }
 
 // New returns a new Memcache cache implementation.
-func New(ctx context.Context, opts *Options) *memcacheCache {
-	m := &memcacheCache{}
+func New[K driver.String](ctx context.Context, opts *Options) *memcacheCache[K] {
+	m := &memcacheCache[K]{}
 	m.init(ctx, opts)
 	return m
 }
 
 // Ensure MemcacheCache implements the cache.Cache interface.
-var _ driver.Cache = &memcacheCache{}
+var _ driver.Cache[string] = new(memcacheCache[string])
+var _ driver.Cache[keymod.Key] = new(memcacheCache[keymod.Key])
 
 // OpenCacheURL implements cache.URLOpener.
-func (m *memcacheCache) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.Cache, error) {
+func (m *memcacheCache[K]) OpenCacheURL(ctx context.Context, u *url.URL) (*cache.GenericCache[K], error) {
 	addrs := strings.Split(u.Host, ",")
 	m.init(ctx, &Options{Addrs: addrs})
 	return cache.NewCache(m), nil
 }
 
-func (m *memcacheCache) init(_ context.Context, opts *Options) {
+func (m *memcacheCache[K]) init(_ context.Context, opts *Options) {
 	m.once.Do(func() {
 		if opts == nil {
 			opts = &Options{}
@@ -113,14 +115,13 @@ func (m *memcacheCache) init(_ context.Context, opts *Options) {
 }
 
 // Count implements cache.Cache.
-func (m *memcacheCache) Count(_ context.Context, pattern string, modifiers ...keymod.Mod) (int64, error) {
+func (m *memcacheCache[K]) Count(_ context.Context, pattern K) (int64, error) {
 	return 0, gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrPatternMatchingNotSupported, fmt.Errorf("Count operation not supported")))
 }
 
 // Exists implements cache.Cache.
-func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymod.Mod) (bool, error) {
-	key = keymod.Modify(key, modifiers...)
-	_, err := m.client.Get(key)
+func (m *memcacheCache[K]) Exists(_ context.Context, key K) (bool, error) {
+	_, err := m.client.Get(string(key))
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			return false, nil
@@ -132,9 +133,8 @@ func (m *memcacheCache) Exists(_ context.Context, key string, modifiers ...keymo
 }
 
 // Del implements cache.Cache.
-func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.Mod) error {
-	key = keymod.Modify(key, modifiers...)
-	err := m.client.Delete(key)
+func (m *memcacheCache[K]) Del(_ context.Context, key K) error {
+	err := m.client.Delete(string(key))
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found: %w", key, err)))
@@ -146,19 +146,18 @@ func (m *memcacheCache) Del(_ context.Context, key string, modifiers ...keymod.M
 }
 
 // DelKeys implements cache.Cache.
-func (m *memcacheCache) DelKeys(_ context.Context, pattern string, modifiers ...keymod.Mod) error {
+func (m *memcacheCache[K]) DelKeys(_ context.Context, pattern K) error {
 	return gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrPatternMatchingNotSupported, fmt.Errorf("DelKeys operation not supported")))
 }
 
 // Clear implements cache.Cache.
-func (m *memcacheCache) Clear(_ context.Context) error {
+func (m *memcacheCache[K]) Clear(_ context.Context) error {
 	return m.client.DeleteAll()
 }
 
 // Get implements cache.Cache.
-func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.Mod) ([]byte, error) {
-	key = keymod.Modify(key, modifiers...)
-	item, err := m.client.Get(key)
+func (m *memcacheCache[K]) Get(_ context.Context, key K) ([]byte, error) {
+	item, err := m.client.Get(string(key))
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			return nil, gcerrors.NewWithScheme(Scheme, errors.Join(cache.ErrKeyNotFound, fmt.Errorf("key %s not found: %w", key, err)))
@@ -170,10 +169,9 @@ func (m *memcacheCache) Get(_ context.Context, key string, modifiers ...keymod.M
 }
 
 // Set implements cache.Cache.
-func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, modifiers ...keymod.Mod) error {
-	key = keymod.Modify(key, modifiers...)
+func (m *memcacheCache[K]) Set(_ context.Context, key K, value interface{}) error {
 	item := &memcache.Item{
-		Key:   key,
+		Key:   string(key),
 		Value: []byte(value.(string)),
 	}
 	err := m.client.Set(item)
@@ -184,10 +182,9 @@ func (m *memcacheCache) Set(_ context.Context, key string, value interface{}, mo
 }
 
 // SetWithTTL implements cache.Cache.
-func (m *memcacheCache) SetWithTTL(_ context.Context, key string, value interface{}, ttl time.Duration, modifiers ...keymod.Mod) error {
-	key = keymod.Modify(key, modifiers...)
+func (m *memcacheCache[K]) SetWithTTL(_ context.Context, key K, value interface{}, ttl time.Duration) error {
 	item := &memcache.Item{
-		Key:        key,
+		Key:        string(key),
 		Value:      []byte(value.(string)),
 		Expiration: int32(ttl.Seconds()),
 	}
@@ -199,11 +196,11 @@ func (m *memcacheCache) SetWithTTL(_ context.Context, key string, value interfac
 }
 
 // Ping implements cache.Cache.
-func (m *memcacheCache) Ping(_ context.Context) error {
+func (m *memcacheCache[K]) Ping(_ context.Context) error {
 	return m.client.Ping()
 }
 
 // Close implements cache.Cache.
-func (m *memcacheCache) Close() error {
+func (m *memcacheCache[K]) Close() error {
 	return m.client.Close()
 }

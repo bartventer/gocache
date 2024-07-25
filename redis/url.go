@@ -9,13 +9,13 @@ import (
 )
 
 // paramKeyBlacklist is a list of keys that should not be set on the Redis options.
-var paramKeyBlacklist = map[string]bool{
-	"addr":                       true,
-	"newclient":                  true,
-	"dialer":                     true,
-	"onconnect":                  true,
-	"credentialsprovider":        true,
-	"credentialsprovidercontext": true,
+var paramKeyBlacklist = map[string]struct{}{
+	"addr":                       {},
+	"newclient":                  {},
+	"dialer":                     {},
+	"onconnect":                  {},
+	"credentialsprovider":        {},
+	"credentialsprovidercontext": {},
 }
 
 // optionsFromURL parses a [url.URL] into [redis.Options].
@@ -39,7 +39,7 @@ func optionsFromURL(u *url.URL) (Options, error) {
 	var opts Options
 
 	// Parse the query parameters into a map
-	parser := urlparser.NewURLParser(
+	parser := urlparser.New(
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
 		mapstructure.StringToTimeHookFunc(time.RFC3339),

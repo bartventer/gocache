@@ -16,8 +16,7 @@ import (
 )
 
 func TestRamcacheCache_OpenCacheURL(t *testing.T) {
-	t.Parallel()
-	r := &ramcache{}
+	r := &ramcache[string]{}
 	u, err := url.Parse("ramcache://?defaultttl=1h")
 	require.NoError(t, err)
 
@@ -27,17 +26,16 @@ func TestRamcacheCache_OpenCacheURL(t *testing.T) {
 }
 
 func TestRamcacheCache_New(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 
-	r := New(ctx, &Options{})
+	r := New[string](ctx, &Options{})
 	require.NotNil(t, r)
 	assert.NotNil(t, r.store)
 }
 
 func Test_ramcache_removeExpiredItems(t *testing.T) {
 	ctx := context.Background()
-	r := &ramcache{}
+	r := &ramcache[string]{}
 	r.init(ctx, &Options{CleanupInterval: 5 * time.Minute})
 
 	tests := []struct {
@@ -85,7 +83,7 @@ func Test_ramcache_removeExpiredItems(t *testing.T) {
 
 func TestSetWithTTL_InvalidExpiry(t *testing.T) {
 	ctx := context.Background()
-	r := New(ctx, &Options{})
+	r := New[string](ctx, &Options{})
 
 	err := r.SetWithTTL(ctx, "key", "value", -1*time.Second)
 	if !errors.Is(err, cache.ErrInvalidTTL) {
@@ -95,7 +93,7 @@ func TestSetWithTTL_InvalidExpiry(t *testing.T) {
 
 func Test_ramcache_set(t *testing.T) {
 	ctx := context.Background()
-	cache := New(ctx, &Options{})
+	cache := New[string](ctx, &Options{})
 
 	tests := []struct {
 		name    string
@@ -213,36 +211,36 @@ func (s *Stringer) String() string {
 	return "stringer"
 }
 
-func setupCache(t *testing.T) *ramcache {
+func setupCache[K driver.String](t *testing.T) *ramcache[K] {
 	t.Helper()
-	r := New(context.Background(), &Options{})
+	r := New[K](context.Background(), &Options{})
 	return r
 }
 
-type harness struct {
-	cache *ramcache
+type harness[K driver.String] struct {
+	cache *ramcache[K]
 }
 
-func (h *harness) MakeCache(ctx context.Context) (driver.Cache, error) {
+func (h *harness[K]) MakeCache(ctx context.Context) (driver.Cache[K], error) {
 	return h.cache, nil
 }
 
-func (h *harness) Close() {}
+func (h *harness[K]) Close() {}
 
-func (h *harness) Options() drivertest.Options {
+func (h *harness[K]) Options() drivertest.Options {
 	return drivertest.Options{
 		PatternMatchingDisabled: true, // Ramcache does not support pattern matching
 		CloseIsNoop:             true, // Cache can still be used after closing
 	}
 }
 
-func newHarness(ctx context.Context, t *testing.T) (drivertest.Harness, error) {
-	cache := setupCache(t)
-	return &harness{
+func newHarness[K driver.String](ctx context.Context, t *testing.T) (drivertest.Harness[K], error) {
+	cache := setupCache[K](t)
+	return &harness[K]{
 		cache: cache,
 	}, nil
 }
 
 func TestConformance(t *testing.T) {
-	drivertest.RunConformanceTests(t, newHarness)
+	drivertest.RunConformanceTests(t, newHarness[string])
 }
