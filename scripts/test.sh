@@ -6,13 +6,12 @@ WORKSPACE="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
 COVERDIR="${COVERDIR:-$WORKSPACE/.coverage}"
 mkdir -p "$COVERDIR"
 
-gomods=$(find . -name go.mod)
+gomods=$(find . -name go.mod -type f -exec dirname {} \; | sort)
 
-for file in $gomods; do
+for dir in $gomods; do
     printf '\n\n%s\n' "$(printf '=%.0s' {1..80})"
-    printf "🐛 Testing module at path: %s\n" "$file"
+    printf "🐛 Testing module at path: %s\n" "$dir"
     printf '%s\n' "$(printf '=%.0s' {1..80})"
-    dir=$(dirname "$file")
     if [[ "$(basename "$dir")" == "." ]]; then
         coverfile="$COVERDIR/root.cover"
     else

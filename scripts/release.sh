@@ -9,7 +9,7 @@ echo "==========================================================================
 
 yarn install
 
-releasedirs=$(find . -name '.releaserc.json' -type f -exec dirname {} \;)
+releasedirs=$(find . -name '.releaserc.json' -type f -exec dirname {} \; | sort)
 
 for dir in $releasedirs; do
     echo "--------------------------------------------------------------------------------"
