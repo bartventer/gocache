@@ -7,7 +7,7 @@ toolchain go1.22.4
 replace github.com/bartventer/gocache => ../
 
 require (
-	github.com/bartventer/gocache v1.12.0
+	github.com/bartventer/gocache v1.14.0
 	github.com/stretchr/testify v1.9.0
 )
 
@@ -20,4 +20,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-retract [v1.0.0, v1.9.1] // Package not stable yet
+retract [v1.0.0, v1.9.1] // Module not stable yet

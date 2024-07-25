@@ -6,12 +6,8 @@ toolchain go1.22.4
 
 replace github.com/bartventer/gocache => ../
 
-// TODO remove once https://github.com/testcontainers/testcontainers-go is updated from v0.31.0
-// https://github.com/testcontainers/testcontainers-go/issues/2583
-replace github.com/docker/docker => github.com/docker/docker v26.1.4+incompatible
-
 require (
-	github.com/bartventer/gocache v1.12.0
+	github.com/bartventer/gocache v1.14.0
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
 	github.com/docker/docker v27.0.0+incompatible
 	github.com/stretchr/testify v1.9.0
@@ -73,4 +69,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-retract [v1.0.0, v1.9.1] // Package not stable yet
+retract [v1.0.0, v1.9.1] // Module not stable yet

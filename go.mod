@@ -19,4 +19,4 @@ require (
 	github.com/stretchr/testify v1.9.0
 )
 
-retract [v1.0.0, v1.9.1] // Package not stable yet
+retract [v1.0.0, v1.9.1] // Module not stable yet
