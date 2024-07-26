@@ -7,7 +7,7 @@ toolchain go1.22.4
 replace github.com/bartventer/gocache => ../
 
 require (
-	github.com/bartventer/gocache v1.14.0
+	github.com/bartventer/gocache v1.15.0
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/google/go-cmp v0.6.0
