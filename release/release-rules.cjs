@@ -1,10 +1,20 @@
 /**
  * Custom `releaseRules` rules before v1.0.0.
+ * For the original rules, see: https://github.com/semantic-release/commit-analyzer/blob/master/lib/default-release-rules.js
  *
- * @type {Array}
- */
+ * @type {Array<{
+*   breaking?: boolean;
+*   revert?: boolean;
+*   type?: "feat" | "fix" | "perf" | "chore" | "docs" | "style" | "refactor" | "test" | "build" | "ci" | "revert";
+*   scope?: string;
+*   emoji?: string;
+*   tag?: string;
+*   component?: string;
+*   release: "patch" | "minor" | "major";
+* }>}
+*/
 module.exports = [
-    { breaking: true, release: "minor" },
+    { breaking: true, release: "minor" }, // Custom rule for breaking changes
     { revert: true, release: "patch" },
     // Angular
     { type: "feat", release: "minor" },
@@ -21,7 +31,7 @@ module.exports = [
     { tag: "FEATURE", release: "minor" },
     { tag: "SECURITY", release: "patch" },
     // ESLint
-    { tag: "Breaking", release: "minor" },
+    { tag: "Breaking", release: "minor" }, // Custom rule for breaking changes
     { tag: "Fix", release: "patch" },
     { tag: "Update", release: "minor" },
     { tag: "New", release: "minor" },

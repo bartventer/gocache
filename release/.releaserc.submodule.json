@@ -1,10 +1,13 @@
 {
+    "extends": [
+        "../.releaserc.json"
+    ],
     "plugins": [
         [
             "@semantic-release/commit-analyzer",
             {
                 "preset": "angular",
-                "releaseRules": "../scripts/release-rules.cjs"
+                "releaseRules": "../release/release-rules.cjs"
             }
         ],
         "@semantic-release/git"

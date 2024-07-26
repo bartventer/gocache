@@ -1,7 +1,0 @@
-{
-  "extends": [
-    "../.releaserc.json",
-    "../.releaserc.submodule.json"
-  ],
-  "tagFormat": "memcache/v${version}"
-}

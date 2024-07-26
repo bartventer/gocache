@@ -13,10 +13,76 @@
             "@semantic-release/commit-analyzer",
             {
                 "preset": "angular",
-                "releaseRules": "./scripts/release-rules.cjs"
+                "releaseRules": "./release/release-rules.cjs"
             }
         ],
-        "@semantic-release/release-notes-generator",
+        [
+            "@semantic-release/release-notes-generator",
+            {
+                "preset": "conventionalcommits",
+                "presetConfig": {
+                    "types": [
+                        {
+                            "type": "feat",
+                            "section": "Features"
+                        },
+                        {
+                            "type": "fix",
+                            "section": "Bug Fixes"
+                        },
+                        {
+                            "type": "perf",
+                            "section": "Performance Improvements"
+                        },
+                        {
+                            "type": "docs",
+                            "section": "Documentation"
+                        },
+                        {
+                            "type": "style",
+                            "section": "Styles"
+                        },
+                        {
+                            "type": "refactor",
+                            "section": "Code Refactoring",
+                            "hidden": true
+                        },
+                        {
+                            "type": "test",
+                            "section": "Tests",
+                            "hidden": true
+                        },
+                        {
+                            "type": "build",
+                            "section": "Build System"
+                        },
+                        {
+                            "type": "ci",
+                            "section": "Continuous Integration"
+                        },
+                        {
+                            "type": "revert",
+                            "section": "Reverts"
+                        },
+                        {
+                            "type": "sec",
+                            "section": "Security"
+                        },
+                        {
+                            "type": "chore",
+                            "section": "Chores"
+                        }
+                    ],
+                    "preMajor": true
+                },
+                "writerOpts": {
+                    "commitsSort": [
+                        "subject",
+                        "scope"
+                    ]
+                }
+            }
+        ],
         "@semantic-release/github"
     ]
 }

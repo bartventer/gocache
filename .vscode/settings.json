@@ -1,3 +1,11 @@
 {
-    "go.testTimeout": "15m"
+    "go.testTimeout": "15m",
+    "json.schemas": [
+        {
+            "fileMatch": [
+                "/workspaces/gocache/release/.releaserc.submodule.json",
+            ],
+            "url": "https://json.schemastore.org/semantic-release.json"
+        }
+    ]
 }

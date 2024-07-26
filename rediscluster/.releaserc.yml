@@ -1,0 +1,3 @@
+extends:
+  - ../release/.releaserc.submodule.json
+tagFormat: rediscluster/v${version}
