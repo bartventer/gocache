@@ -20,4 +20,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-retract [v1.0.0, v1.9.1] // Module not stable yet
+retract [v1.0.0, v1.15.0] // Public API is not stable yet.
